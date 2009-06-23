@@ -38,7 +38,7 @@ namespace exposit {
 
 	void qualify2 (VStar const &s);
 
-	void qualify (multimap<int, VStar*> const &lvstar);
+	bool qualify (multimap<int, VStar*> const &lvstar);
     };
 
     int dxxdyy (VStar const &a, VStar const &b);

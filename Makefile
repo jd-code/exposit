@@ -11,14 +11,18 @@ vimtest: exposit
 	#	./exposit -falloff=falloff_180mmf2.8.png ../../m101_a/*07.jpg ../../m101_a/cap*.jpg
 	#### ./exposit -falloff=falloff_180mmf2.8.png -watch=./capt."*\."jpg
 
+	# test avec m51 / decalage en patterns ! explosion sur l'ouverture du premier fichier
+	./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png \
+	/home/jd/series/e/a/ttt/capt0001.jpg /home/jd/series/e/a/ttt/*
+
 	# test de rotation
-	####./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png /home/jd/series/t1/20s/capt0002.jpg /home/jd/series/t1/u/capt0011.jpg
+	# ./exposit -finetune -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png /home/jd/series/t1/20s/capt0002.jpg /home/jd/series/t1/u/capt0011.jpg
 
 	# test de bluriness
-	./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png /home/jd/series/t1/20s/capt0002.jpg \
-	/home/jd/series/t1/u???*/capt0010.jpg \
-	/home/jd/series/t1/u???*/capt0014.jpg \
-	/home/jd/series/t1/u???*/capt0025.jpg \
+	# ./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png /home/jd/series/t1/20s/capt0002.jpg \
+	# /home/jd/series/t1/u???*/capt0010.jpg \
+	# /home/jd/series/t1/u???*/capt0014.jpg \
+	# /home/jd/series/t1/u???*/capt0025.jpg \
 
 	###########./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png /home/jd/m101_a/*07.jpg /home/jd/m101_a/*.jpg
 	#	./exposit -doublescale -falloff=falloff_180mmf2.8.png ../../m101_a/*07.jpg ../../m101_a/cap*.jpg
@@ -55,6 +59,6 @@ graphutils.o: graphutils.c graphutils.h
 	gcc -Wall ${COMPFLAGS} -c graphutils.c `sdl-config --cflags`
 
 clean:
-	rm -f graphutils.o jeuchar.o draw.o exposit.o starsmap.o gp_imagergbl.o vstar.o exposit
+	rm -f graphutils.o jeuchar.o draw.o exposit.o starsmap.o gp_imagergbl.o vstar.o simplechrono.o exposit
 
 distclean: clean

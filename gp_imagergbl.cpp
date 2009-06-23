@@ -18,6 +18,14 @@ namespace exposit {
 int ImageRGBL::debug = 0;
 bool ImageRGBL::chrono = false;
 
+    void ImageRGBL::setdebug (int d) {
+	debug = d;
+    }
+
+    void ImageRGBL::setchrono (bool c) {
+	chrono = c;
+    }
+
     void putpixel(SDL_Surface &surface, int x, int y, int r, int g, int b)
     {
 	Uint32 pixel = SDL_MapRGB(surface.format, r, g, b);
@@ -792,10 +800,10 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 
 
 // ################# JDJDJDJDJD verifier que les deux diffs sont toujourts identiques !!!!
-    int ImageRGBL::diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy) {
+    long long ImageRGBL::diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy) {
 	int x, y, xc=xr-dx, yc=yr-dy;
 ////////	int x, y, xc=xr+dx, yc=yr+dy;
-	int diff = 0;
+	long long diff = 0;
 
 	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++)
 	    diff += dabs (l[xc+x][yc+y], ref.l[xr+x][yr+y]);
@@ -805,9 +813,9 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 
 // ################# JDJDJDJDJD verifier que les deux diffs sont toujourts identiques !!!!
 
-    int ImageRGBL::diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy, int cut) {
+    long long ImageRGBL::diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy, int cut) {
 	int x, y, xc=xr-dx, yc=yr-dy;
-	int diff = 0;
+	long long diff = 0;
 
 	for (x=0 ; x<width ; x++) {
 	    for (y=0 ; y<height ; y++) {
@@ -819,6 +827,17 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 	}
 	return diff;
     }
+
+    long long ImageRGBL::optimaldiff (ImageRGBL &ref, int dx, int dy) {
+	int xr = max (0, dx),
+	    width = min (w - xr + dx ,  ref.w - xr),
+	    yr = max (0, dy),
+	    height = min (h - yr + dy ,  ref.h - yr);
+	long long d = diff (ref, xr, yr, width, height, dx, dy);
+
+	return (long long)(d * ((1000.0*1000.0) / (width * height)));
+    }
+
 ////////    int ImageRGBL::diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy, int cut) {
 ////////	int x, y, xc=xr-dx, yc=yr-dy;
 ////////	int diff = 0;
@@ -836,14 +855,17 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 
 
 
-    int ImageRGBL::find_match (ImageRGBL &ref, int x, int y, int width, int height, int &dx, int &dy, int maxdd) {
+    long long ImageRGBL::find_match (ImageRGBL &ref, int x, int y, int width, int height, int &dx, int &dy, int maxdd) {
 	int dd;
-	int min, m;
+	long long min, m;
 	int gdx = 0, gdy = 0;
 	int odx = dx, ody = dy;
 
 	dx = 0, dy = 0;
-	min = diff (ref, x, y, width, height, dx, dy);
+	if (x == -1)
+	    min = optimaldiff (ref, -odx-dx, -ody-dy);
+	else
+	    min = diff (ref, x, y, width, height, -odx-dx, -ody-dy);
 //	cout << "      [" << dx << "," << dy << "]" << endl;
 
 	for (dd=1 ; dd<= maxdd ; dd++) {
@@ -851,7 +873,11 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 	    int vy = +1, vx = -1;
 	    int n;
 	    for (n=0; n<4*dd ; n++) {
-		m = diff (ref, x, y, width, height, -odx-dx, -ody-dy, min);
+		if (x == -1)
+		    m = optimaldiff (ref, -odx-dx, -ody-dy);
+		else
+		    m = diff (ref, x, y, width, height, -odx-dx, -ody-dy, min);
+
 		if (m < min)
 		    gdx = dx, gdy = dy, min = m;
 //		cout << "      [" << dx << "," << dy << "] = " << m << endl;
@@ -862,6 +888,10 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 	}
 	dx = odx+gdx, dy = ody+gdy;
 	return min;
+    }
+
+    long long ImageRGBL::optimal_find_match (ImageRGBL &ref, int &dx, int &dy, int maxdd) {
+	return find_match (ref, -1, -1, -1, -1, dx, dy, maxdd);
     }
 
     void ImageRGBL::maximize (void) {
@@ -1276,6 +1306,8 @@ cout << "lvstar.size() = " << lvstar.size() << endl;
 	static Chrono chrono_neighbouring("finding neighbours and qualifying"); chrono_neighbouring.start();
 
 	// lvstar.erase(lvstar.begin(),lvstar.lower_bound(lvstar.rbegin()->first/2));
+
+// #define OUTPUTCINFOS
 #ifdef OUTPUTCINFOS
 ofstream cinfo ("/tmp/stinfo1.txt");
 #endif
@@ -1369,8 +1401,11 @@ cinfo << "mag[" << li->first << " = star["<<x<<","<<y<<"]" << endl;
 
 	    }
 
-	    li->second.qualify (neighb);
+	    if (!li->second.qualify (neighb))
+		li->second.expunged = true;
+		
 
+//   la en dessous il faudrait gerer les expunged qui ont ete rajoute depuis ...
 //	    bool drawthestuff = false;	    // JDJDJDJD
 //		    if (drawthestuff) {
 //			SDL_LockSurface(screen);
@@ -1422,6 +1457,8 @@ cinfo << "mag[" << li->first << " = star["<<x<<","<<y<<"]" << endl;
 //			SDL_UpdateRect(screen, 0, 0, 0, 0);
 //		    }
 	}
+	lvstar.full_expunge();
+
 	chrono_neighbouring.stop(); if (chrono) cout << chrono_neighbouring << endl;
 
 	bool trytogetsomeoldinfosnotneededanymore = false;
