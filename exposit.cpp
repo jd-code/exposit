@@ -128,7 +128,8 @@ int try_add_pic (const char * fname) {
 	}
 	image->study_specularity(*starmap);
 
-	int dx, dy, diff;
+	int dx, dy;
+	long long diff;
 	double firstda0 = 0.0;
 
 	static Chrono chrono_vectordiffing("vector diffing"); chrono_vectordiffing.start();
@@ -136,32 +137,27 @@ int try_add_pic (const char * fname) {
 	{
 	    double da0, da0_b;
 	    diff = starmap->find_match (ref_starmap, 0.0, dx, dy, da0, da0_b);
-//	    da0_b += M_PI/2;
-//	    if (da0_b > 2*M_PI) da0_b -= 2*M_PI;
 
-cout << " try_add_pic : dv vector-choosed(0) = d[" << dx << "," << dy
-     << "] + rot[ " << ((int)((1800.0*da0  )/M_PI))/10.0
-     << " ~ " <<       ((int)((1800.0*da0_b)/M_PI))/10.0 << " ] " << endl;
-	    // << (100.0*((double)diff)/(width*width)) << "%" << endl;
+	    cout << " try_add_pic : dv vector-choosed(0) = d[" << dx << "," << dy
+		 << "] + rot[ " << ((int)((1800.0*da0  )/M_PI))/10.0
+		 << " ~ " <<       ((int)((1800.0*da0_b)/M_PI))/10.0 << " ] " << endl;
 
 	    firstda0 = da0_b;
 	    diff = starmap->find_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
-cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
-     << "] + rot[ " << ((int)((1800.0*da0  )/M_PI))/10.0
-     << " ~ " <<       ((int)((1800.0*da0_b)/M_PI))/10.0 << " ] " << endl;
 
+	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
+		 << "] + rot[ " << ((int)((1800.0*da0  )/M_PI))/10.0
+		 << " ~ " <<       ((int)((1800.0*da0_b)/M_PI))/10.0 << " ] " << endl;
 	}
 	chrono_vectordiffing.stop(); if (chrono) cout << chrono_vectordiffing << endl;
 
-//	image->render (*screen, screen->w/2, screen->h/2, screen->w/2, screen->h/2, 0, 256);
-
-bool compareoldmethod = false;
-if (compareoldmethod) {
-	// int diff = image->find_match (*ref_image, image->w/3, image->h/3, width, width, dx, dy, maxdt);
-	dx = 0, dy = 0;
-	diff = image->find_match (*ref_image, xzoom, yzoom, wzoom, hzoom, dx, dy, maxdt);
-	cout << " try_add_pic : dv pixmap-choosed = d[" << dx << "," << dy << "] = " << (100.0*((double)diff)/(width*width)) << "%" << endl;
-}
+	bool compareoldmethod = false;
+	if (compareoldmethod) {
+		// int diff = image->find_match (*ref_image, image->w/3, image->h/3, width, width, dx, dy, maxdt);
+		dx = 0, dy = 0;
+		diff = image->find_match (*ref_image, xzoom, yzoom, wzoom, hzoom, dx, dy, maxdt);
+		cout << " try_add_pic : dv pixmap-choosed = d[" << dx << "," << dy << "] = " << (100.0*((double)diff)/(width*width)) << "%" << endl;
+	}
 
 	if (finetune) {
 	    static Chrono chrono_fine_tuning("fine-tuning"); chrono_fine_tuning.start();
@@ -171,7 +167,7 @@ if (compareoldmethod) {
 	    int wdx,wdy;
 
 	    int gdx = dx, gdy = dy; double gda0 = firstda0;
-	    int mindiff = -1;
+	    long long mindiff = -1;
 
 	    for (ang = firstda0-delta ; ang < firstda0+delta ; ang += step) {
 		ImageRGBL *rot = NULL;
@@ -179,7 +175,12 @@ if (compareoldmethod) {
 		if (rot == NULL)
 		    continue;
 		wdx = dx, wdy = dy;
-		int diff = rot->find_match (*ref_image, xzoom, yzoom, wzoom, hzoom, wdx, wdy, 3);
+bool optimalmatch = true;
+		if (optimalmatch==true)
+		    diff = rot->optimal_find_match (*ref_image, wdx, wdy, 3);
+		else
+		    diff = rot->find_match (*ref_image, xzoom, yzoom, wzoom, hzoom, wdx, wdy, 3);
+
 		if ((mindiff == -1) || (diff < mindiff)) {
 		    mindiff = diff;
 		    gdx = wdx, gdy = wdy, gda0 = ang;
@@ -191,10 +192,12 @@ if (compareoldmethod) {
 	    else
 		cerr << "fine tuning (weirdly) failed ???" << endl ;
 
+	    diff = mindiff;
+
 	    chrono_fine_tuning.stop(); if (chrono) cout << chrono_fine_tuning << endl;
 
 cout << " try_add_pic : dv fine-tuned = d[" << dx << "," << dy
-     << "] + rot[ " << ((int)((18000.0*firstda0  )/M_PI))/100.0 << "] = " << mindiff << endl;
+     << "] + rot[ " << fixed << setprecision(5) << ((int)((18000.0*firstda0  )/M_PI))/100.0 << "] = " << diff << endl;
 	}
 
 
@@ -211,13 +214,12 @@ cout << " try_add_pic : dv fine-tuned = d[" << dx << "," << dy
 	    chrono_falloffcorrecting.stop(); if (chrono) cout << chrono_falloffcorrecting << endl;
 	}
 
-    ImageRGBL *rot = NULL;
-    if (firstda0 != 0.0) {
-	static Chrono chrono_rotating("rotating image"); chrono_rotating.start();
-	rot = image->rotate(firstda0);
-	chrono_rotating.stop(); if (chrono) cout << chrono_rotating << endl;
-    }
-
+	ImageRGBL *rot = NULL;
+	if (firstda0 != 0.0) {
+	    static Chrono chrono_rotating("rotating image"); chrono_rotating.start();
+	    rot = image->rotate(firstda0);
+	    chrono_rotating.stop(); if (chrono) cout << chrono_rotating << endl;
+	}
 
 if (debug)
 cout << " try_add_pic : dv choosed = d[" << dx << "," << dy << "] = " << (100.0*((double)diff)/(width*width)) << "%" << endl;
@@ -658,6 +660,10 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		    }
 		}
 	    }
+	} else if (strncmp ("-debug=", cmde[i], 7) == 0) {
+	    debug = atoi (cmde[i]+7);
+	    ImageRGBL::setdebug (debug);
+	    StarsMap::setdebug (debug);
 	} else if (strncmp ("-doublescale", cmde[i], 12) == 0) {
 	    doublesize = true;
 	} else if (strncmp ("-noise=", cmde[i], 7) == 0) {

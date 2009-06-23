@@ -114,12 +114,17 @@ static bool chrono;
 
     void maxminize (void);
 
-    int diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy);
+    long long diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy);
 
-    int diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy, int cut);
+    long long diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy, int cut);
+
+    long long optimaldiff (ImageRGBL &ref, int dx, int dy);
 
 
-    int find_match (ImageRGBL &ref, int x, int y, int width, int height, int &dx, int &dy, int maxdd);
+    long long find_match (ImageRGBL &ref, int x, int y, int width, int height, int &dx, int &dy, int maxdd);
+
+    long long optimal_find_match (ImageRGBL &ref, int &dx, int &dy, int maxdd);
+
 
     void maximize (void);
 

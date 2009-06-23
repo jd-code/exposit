@@ -1,5 +1,7 @@
 #include <math.h>
 
+#include <iostream>
+
 #include "vstar.h"
 
 namespace exposit {
@@ -94,7 +96,9 @@ namespace exposit {
 	mag2 = s.abs_magnitude / abs_magnitude;
     }
 
-    void VStar::qualify (multimap<int, VStar*> const &lvstar) {
+    bool VStar::qualify (multimap<int, VStar*> const &lvstar) {
+	if (lvstar.size() < 3)
+	    return false;
 	multimap<int, VStar*>::const_iterator mi, mm=lvstar.end();
 	int i;
 	int vmax = 0;
@@ -127,6 +131,7 @@ namespace exposit {
 	a2 -= a1;
 	if (a1 < 0)
 	    a1 += 2 * M_PI;
+	return true;
     }
 
 
