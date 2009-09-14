@@ -574,6 +574,138 @@ cout << " render: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	SDL_UpdateRect(&surface, 0, 0, 0, 0);
     }
 
+    bool ImageRGBL::savecorrected (const char * fname, int base, int nblevs) {
+	map<int,int>::iterator mi, mi_max;
+	int vmax;
+	int rnoise, gnoise, bnoise;
+
+	fasthistogramme (1);
+	vmax = 0;
+	for (mi=hr.begin() ; mi!=hr.end() ; mi++)
+	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
+	rnoise = mi_max->first -1;
+	vmax = 0;
+	for (mi=hg.begin() ; mi!=hg.end() ; mi++)
+	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
+	gnoise = mi_max->first -1;
+	vmax = 0;
+	for (mi=hb.begin() ; mi!=hb.end() ; mi++)
+	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
+	bnoise = mi_max->first -1;
+if (debug)
+cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
+
+	double gain = 256.0/nblevs;
+
+	png_structp png_ptr;
+	png_infop info_ptr;
+
+	png_bytep * row_pointers = (png_bytep *) malloc (h * sizeof(png_bytep));
+	if (row_pointers == NULL) {
+	    cerr << "save_png : could not allocate row_pointers" << endl;
+	    return false;
+	}
+
+	int y;
+
+	for (y=0 ; y<h ; y++) {
+	    row_pointers[y] = (png_bytep) malloc (w * sizeof(png_byte) * 4); 
+	    int x;
+	    png_bytep p = row_pointers[y];
+	    if (p == NULL) {
+		cerr << "save_png : could not allocate row itself" << endl;
+		int i;
+		for (i=0 ; i<y ; i++) free (row_pointers[i]);
+		free (row_pointers);
+		return false;
+	    }
+	    for (x=0 ; x<w ; x++) {
+	    int tr = 0, tg = 0, tb = 0;
+		tr += max(0, r[x][y] - (rnoise+base));
+		tg += max(0, g[x][y] - (gnoise+base));
+		tb += max(0, b[x][y] - (bnoise+base));
+
+		*p++ = (png_byte)(min(255,(int)(gain * tr)));
+		*p++ = (png_byte)(min(255,(int)(gain * tg)));
+		*p++ = (png_byte)(min(255,(int)(gain * tb)));
+		*p++ = 255;
+	    }
+	}
+
+
+	/* create file */
+	FILE *fp = fopen(fname, "wb");
+	if (!fp) {
+	    cerr << "[write_png_file] File " << fname << " could not be opened for writing" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	/* initialize stuff */
+	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	
+	if (!png_ptr) {
+	    cerr << "[write_png_file] png_create_write_struct failed" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+	    cerr << "[write_png_file] png_create_info_struct failed" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	if (setjmp(png_jmpbuf(png_ptr))) {
+	    cerr << "[write_png_file] Error during init_io" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	png_init_io(png_ptr, fp);
+
+
+	/* write header */
+	if (setjmp(png_jmpbuf(png_ptr))) {
+	    cerr << "[write_png_file] Error during writing header" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	png_set_IHDR(png_ptr, info_ptr, w, h,
+		     8, PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE,
+		     PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+	png_write_info(png_ptr, info_ptr);
+
+
+	/* write bytes */
+	if (setjmp(png_jmpbuf(png_ptr))) {
+	    cerr << "[write_png_file] Error during writing bytes" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	png_write_image(png_ptr, row_pointers);
+
+
+	/* end write */
+	if (setjmp(png_jmpbuf(png_ptr))) {
+	    cerr << "[write_png_file] Error during end of write" << endl;
+	    for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+	    return false;
+	}
+
+	png_write_end(png_ptr, NULL);
+
+	/* cleanup heap allocation */
+	for (y=0 ; y<h ; y++) free (row_pointers[y]); free (row_pointers);
+
+	fclose(fp);
+	return true;
+    }
+
     bool ImageRGBL::save_png (const char * fname) {
 	png_structp png_ptr;
 	png_infop info_ptr;
