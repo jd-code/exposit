@@ -363,6 +363,7 @@ cout << "nbimage = " << nbimage << endl;
     bool redrawzoom = false;
     bool redrawsum = false;
     bool redrawhist = false;
+    bool wemustsave = false;
 
     int nwzoom;
     int nhzoom;
@@ -496,6 +497,10 @@ cout << "nbimage = " << nbimage << endl;
 			    interactfly = true;
 			    break;
 
+			case SDLK_s:
+			    wemustsave = true;
+			    break;
+
 			case SDLK_g:
 			    interactfly = false;
 			    break;
@@ -529,6 +534,16 @@ cout << "nbimage = " << nbimage << endl;
 		SDL_FillRect(screen, &r, SDL_MapRGB(screen->format, 0, 0, 0));
 		sum_image->renderhist (*screen, screen->w/2, 0, screen->w/2, screen->h/2, base, gain);
 		redrawhist = false;
+	    }
+	    if (wemustsave) {
+static int nbprint = 0;
+		char fname[50];
+		snprintf (fname, 50, "test_%04d.png", nbprint);
+		nbprint++;
+		cerr << "saving corrected pic " << fname << "..." << endl;
+		sum_image->savecorrected (fname, base, gain);
+		cerr << " ... done." << endl;
+		wemustsave = false;
 	    }
 	}
     
@@ -594,7 +609,211 @@ cout << "reference star map : " << ref_starmap.size () << " stars." << endl;
 using namespace exposit; 
 using namespace std;
 
+int simplenanosleep (int ms) {
+    timespec rqtp, rmtp;
+    rqtp.tv_sec = 0, rqtp.tv_nsec = ms*1000000;
+
+    return nanosleep (&rqtp, &rmtp);
+}
+
+void * thread_interact (void *) {
+    debug = 1;
+    if (debug) cerr << "entree dans thread_interact" << endl;
+
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_WM_SetCaption("exposit", "exposit");
+    // screen = SDL_SetVideoMode(1024, 768, 0, 0);
+
+    while (ref_image == NULL) {
+	simplenanosleep (100);
+    }
+
+    if (ref_image != NULL) {
+	if (screen == NULL)
+	    screen = SDL_SetVideoMode(1280, (ref_image->h*1280)/ref_image->w, 0, 0);
+    }
+
+    if (debug) cerr << "sortie de thread_interact imminente" << endl;
+
+    return NULL;
+}
+
 int main (int nb, char ** cmde) {
+
+    pthread_t pth_interact;
+
+    if (pthread_create( &pth_interact, NULL, thread_interact, (void*) NULL) != 0) {
+	int e = errno;
+	cerr << "could not create interaction thread : " << strerror (e) << endl;
+    }
+
+    int i;
+    int nbimage = 0;
+    for (i=1 ; i<nb ; i++) {
+	if (cmde[i][0] != '-') {
+	    if (ref_image == NULL) {
+		if (nbimage != 0) cerr << "warning, the reference image in use isn't the first in the list" << endl;
+
+		ref_image = load_image (cmde[i]);
+
+		if (doublesize) {
+		    if (ref_image != NULL)
+		    {	ImageRGBL *imageb = ref_image->doublescale ();
+			delete (ref_image);
+			ref_image = imageb;
+		// ref_image->save_png ("ref.png");
+		    }
+		}
+
+		if (ref_image != NULL) {
+		    
+		    StarsMap * mmap = ref_image->graphe_stars();
+		    if (mmap == NULL) {
+			cerr << "could not allocate reference stars-map : bailing out ..." << endl;
+			return -1;
+		    }
+		    ref_starmap = *mmap;
+cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
+
+		    cout << "reference image is '" << cmde[i] << "'" << endl;
+		    if (sum_image == NULL) {
+			sum_image = new ImageRGBL (ref_image->w, ref_image->h);
+			if (sum_image == NULL) {
+			    cerr << "could not allocate sum_image : bailing out ..." << endl;
+			    return -1;
+			}
+			sum_image->zero();
+			sum_image->turnmaskon(0);
+		    }
+		}
+	    }
+
+	    if (try_add_pic (cmde[i]) == 0) {
+		nbimage ++;
+		if (screen != NULL) {
+		    if (!interact (nbimage, interactfly)) {
+			// let's exit
+			break;
+		    }
+		}
+	    }
+	} else if (strncmp ("-debug=", cmde[i], 7) == 0) {
+	    debug = atoi (cmde[i]+7);
+	    ImageRGBL::setdebug (debug);
+	    StarsMap::setdebug (debug);
+	} else if (strncmp ("-doublescale", cmde[i], 12) == 0) {
+	    doublesize = true;
+	} else if (strncmp ("-noise=", cmde[i], 7) == 0) {
+	    ImageRGBL *im = load_image (cmde[i] + 7);
+	    if (im == NULL) {
+		cerr << "could not load noise-reference image : '" << (cmde[i] + 7) << "'" << endl;
+	    } else {
+if (doublesize) {
+    if (im != NULL)
+    {	ImageRGBL *imageb = im->doublescale ();
+	delete (im);
+	im = imageb;
+// ref_image->save_png ("ref.png");
+    }
+}
+		lnoise_ref.push_back (im);
+	    }
+	} else if (strncmp ("-falloff=", cmde[i], 9) == 0) {
+	    falloff_ref = load_image (cmde[i] + 9);
+	    if (falloff_ref == NULL)
+		cerr << "could not load fall-off-reference image : '" << (cmde[i] + 7) << "'" << endl;
+	    else {
+		if (sum_image == NULL) {
+		    sum_image = new ImageRGBL (falloff_ref->w, falloff_ref->h);
+		    if (sum_image == NULL) {
+			cerr << "could not allocate sum_image : bailing out ..." << endl;
+			return -1;
+		    }
+		    sum_image->zero();
+		    sum_image->turnmaskon(0);
+		}
+		if (doublesize) {
+		    if (falloff_ref != NULL)
+		    {	ImageRGBL *imageb = falloff_ref->doublescale ();
+			delete (falloff_ref);
+			falloff_ref = imageb;
+		// ref_image->save_png ("ref.png");
+		    }
+		}
+		falloff_ref->setmax();
+	    }
+	} else if (strncmp ("-finetune", cmde[i], 9) == 0) {
+	    finetune = true;
+	} else if (strncmp ("-watch=", cmde[i], 7) == 0) {
+	    dirname = cmde[i]+7;
+	    regexp = "";
+	    size_t pos = dirname.rfind("/");
+	    if (pos != string::npos) {
+		regexp = dirname.substr(pos + 1);
+		dirname = dirname.substr(0, pos);
+	    }
+	    if (regexp.size() == 0)
+	    {
+		regexp = ".*\\.jpg";
+		cerr << "no regexp supplied, applying default : \"" << regexp << "\"" << endl;
+	    }
+if (debug) {
+cout << "dirname = \"" << dirname << "\"" << endl;
+cout << "regexp = \"" << regexp << "\"" << endl;
+}
+	    cregexp = (regex_t *) malloc(sizeof(regex_t));
+	    if (cregexp == NULL) {
+		int e = errno;
+		cerr << "could not malloc for regexp : " << strerror (e) << endl;
+		continue;
+	    }
+	    memset(cregexp, 0, sizeof(regex_t));
+
+	    int err_no = 0;
+	    if ((err_no = regcomp (cregexp, regexp.c_str(), REG_NOSUB)) !=0 ) { /* Compile the regex */
+		size_t length = regerror (err_no, cregexp, NULL, 0);; 
+		char *buffer = (char *) malloc(length);;
+		if (buffer == NULL) {
+		    cerr << "regexp error and could not even malloc for error report !" << endl;
+		    continue;
+		}
+		regerror (err_no, cregexp, buffer, length);
+		cerr << "regexp error : \"" << regexp << "\" : " << buffer << endl;
+
+		free (buffer);
+		regfree (cregexp);
+		continue;
+	    } 
+
+	    interact (nbimage, true, true);
+
+	    regfree (cregexp);
+	}
+    }
+
+    interact (nbimage, true);
+
+//    sum_image->minimize ();
+//    sum_image->substract (128);
+    if (sum_image != NULL) {
+	sum_image->maxminize ();
+	sum_image->trunk (gain);
+	sum_image->maximize ();
+	sum_image->save_png ("test.png");
+    }
+
+    {	list <ImageRGBL *>::iterator li;
+	for (li=lnoise_ref.begin() ; li!=lnoise_ref.end() ; li++) {
+	    delete (*li);
+	}
+	lnoise_ref.erase (lnoise_ref.begin(), lnoise_ref.end());
+    }
+
+    SDL_Quit();
+    return 0;
+}
+
+int oldmain (int nb, char ** cmde) {
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_WM_SetCaption("exposit", "exposit");
@@ -621,14 +840,6 @@ if (doublesize) {
 		    if (screen == NULL) {
 			screen = SDL_SetVideoMode(1280, (ref_image->h*1280)/ref_image->w, 0, 0);
 		    }
-//	if (!lnoise_ref.empty()) {
-//	    ref_image->substract(**(lnoise_ref.begin()));
-//	}
-//
-//	if (falloff_ref != NULL) {
-//	    ref_image->falloff_correct (*falloff_ref);
-//	}
-
 		    
 		    StarsMap * mmap = ref_image->graphe_stars();
 		    if (mmap == NULL) {
@@ -778,4 +989,3 @@ cout << "regexp = \"" << regexp << "\"" << endl;
     SDL_Quit();
     return 0;
 }
-

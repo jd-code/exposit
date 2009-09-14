@@ -95,6 +95,8 @@ static bool chrono;
 	void render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs);
 
 	bool save_png (const char * fname);
+    
+	bool savecorrected (const char * fname, int base, int nblevs);
 
 	void fasthistogramme (int step, map<int,int> &hr, map<int,int> &hg, map<int,int> &hb, map<int,int> &hl);
 
