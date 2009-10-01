@@ -13,16 +13,23 @@ namespace exposit {
 
     class Chrono;
 
+    class ChronoList : public list<Chrono *> {
+	public:
+	    ChronoList (void) : list<Chrono *>() {}
+	    ~ChronoList (void);
+    };
+
     class Chrono {
 	public:
 
     static clock_t total;
-    static list<Chrono *> chronolist;
+    static ChronoList chronolist;
 
 
 	    string name;
 	    clock_t last_t, last_m, cumul;
 	    bool running;
+	    bool registered;
 
 	    list<Chrono *>::iterator me;
 
@@ -45,7 +52,7 @@ namespace exposit {
 
 #ifdef SIMPLECHRONO_STATICS
     clock_t Chrono::total = 0;
-    list<Chrono *> Chrono::chronolist;
+    ChronoList Chrono::chronolist;
 #endif
 
 }

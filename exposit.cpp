@@ -15,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <list>
+#include <vector>
 #include <map>
 
 #include "draw.h"
@@ -26,13 +27,13 @@
 #include "vstar.h"
 #include "starsmap.h"
 #include "gp_imagergbl.h"
+#include "interact.h"
 
 namespace exposit {
 
 using namespace std;
 
 bool debug = false;
-bool globalchrono = true;
 bool chrono = false;
 bool doublesize = false;
 bool finetune = false;		// must-we perform fine tuning ?
@@ -54,7 +55,12 @@ SDL_Surface* screen = NULL;
 //		return b;
 //	}
 
+int simplenanosleep (int ms) {
+    timespec rqtp, rmtp;
+    rqtp.tv_sec = 0, rqtp.tv_nsec = ms*1000000;
 
+    return nanosleep (&rqtp, &rmtp);
+}
 
 ImageRGBL *load_image (const char * fname) {
     SDL_Surface *surface = IMG_Load(fname);
@@ -86,8 +92,6 @@ ImageRGBL *load_image (const char * fname) {
 
     ImageRGBL *falloff_ref = NULL;
 
-    map <string, int> fmatch;
-	    
     string dirname,		// the dir to be polled for files
 	   regexp;		// the regexp matching files
     regex_t *cregexp = NULL;	// the compiled regexp
@@ -243,378 +247,13 @@ cout << " try_add_pic : dv choosed = d[" << dx << "," << dy << "] = " << (100.0*
     return -1;
 }
 
-bool watchdir (string &dirname, string &regexp, regex_t *cregexp) {
-    bool foundsomething = false;
-    DIR * dir;
-    dir = opendir (dirname.c_str());
-    if (dir == NULL) {
-	int e = errno;
-	cerr << "could not opendir (\"" << dirname << "\") : " << strerror (e) << endl;
 
-	return false;
-    }
-
-    regmatch_t *result = (regmatch_t *) malloc (sizeof(regmatch_t) * (cregexp->re_nsub+1));
-    if (result == NULL) {
-	cerr << "could not allocate for regexp result set" << endl;
-
-	return false;
-    }
-
-    int err_no;
-    struct dirent * pde;
-    while ((pde = readdir (dir)) != NULL) {
-	string fname = dirname;
-	fname += "/";
-	fname += pde->d_name;
-
-	if ((err_no = regexec(cregexp, pde->d_name, 0, result, 0)) == 0) {
-	    map <string, int>::iterator mi = fmatch.find (fname);
-	    if (mi == fmatch.end()) {
-		fmatch [fname] = 0;
-		foundsomething = true;
-	    }
-	} else if (err_no != REG_NOMATCH) {
-	    size_t length = regerror (err_no, cregexp, NULL, 0);; 
-	    char *buffer = (char *) malloc(length);;
-	    if (buffer == NULL) {
-		cerr << "regexp error and could not even malloc for error report [b] !" << endl;
-		continue;
-	    }
-	    regerror (err_no, cregexp, buffer, length);
-	    cerr << "regexp error : \"" << regexp << "\" : " << buffer << endl;
-
-	    free (buffer);
-	} else {
-	    // cout << "     -  " << fname << endl;
-	}
-    }
-
-    free (result);
-    closedir (dir);
-    return foundsomething;
-}
-
-int gain = -1;
-int base = 0;
-
-bool interactfly = true;
-
-bool interact (int &nbimage, bool wemustloop, bool pollingdir = false) {
-
-cout << "************************************************" << endl;
-    if (globalchrono) Chrono::dump(cout);
-cout << "************************************************" << endl;
-
-    if ((sum_image == NULL) || (screen == NULL))
-	return false;
-
-    if (xzoom == -1) {
-	wzoom = screen->w/2;
-	hzoom = screen->h/2;
-	xzoom = (sum_image->w - wzoom) / 2;
-	yzoom = (sum_image->h - hzoom) / 2;
-
-//	xzoom = (sum_image->w - sum_image->w/2) / 2;
-//	yzoom = (sum_image->h - sum_image->h/2) / 2;
-//	wzoom = sum_image->w/2;
-//	hzoom = sum_image->h/2;
-    }
-
-    if (nbimage != 0) {
-	if (gain == -1) {
-	    sum_image->fasthistogramme(1);
-	    map<int,int>::iterator mi, mj;
-	    int vmax = 0;
-	    mj = sum_image->hr.begin();
-	    for (mi=sum_image->hr.begin() ; mi!=sum_image->hr.end() ; mi++) {
-		if (mi->second > vmax) {
-		    vmax = mi->second;
-		    mj = mi;
-		}
-	    }
-	    for (mi=mj ; (mi!=sum_image->hr.end()) && (log(mi->second) > (0.33*log(vmax))) ; mi++) {
-if (debug)
-cout << "  = [ " << mi->first << " : " << mi->second << " ]" << endl ;
-	    }
-	    gain = (mi->first - mj->first) * nbimage;
-if (debug) {
-cout << "initial gain = " << gain << endl;
-cout << "nbimage = " << nbimage << endl;
-}
-	} else {
-	    gain = gain * (nbimage+1)/nbimage;
-	}
-
-	sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain);
-	sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain,
-				xzoom, yzoom, wzoom, hzoom);
-	SDL_Rect r;
-	r.x = screen->w/2;
-	r.y = 0;
-	r.w = screen->w/2;
-	r.h = screen->h/2;
-	SDL_FillRect(screen, &r, SDL_MapRGB(screen->format, 0, 0, 0));
-	sum_image->renderhist (*screen, screen->w/2, 0, screen->w/2, screen->h/2, base, gain);
-    }
-
-    SDL_Event event;
-
-    bool redrawzoom = false;
-    bool redrawsum = false;
-    bool redrawhist = false;
-    bool wemustsave = false;
-
-    int nwzoom;
-    int nhzoom;
-
-    while (wemustloop) {
-	while (SDL_PollEvent(&event)) {
-	    /* an event was found */
-	    switch (event.type) {
-		/* close button clicked */
-		case SDL_QUIT:
-		    return false;
-		    break;
-
-		/* handle the keyboard */
-		case SDL_KEYDOWN:
-		    switch (event.key.keysym.sym) {
-			case SDLK_ESCAPE:
-			case SDLK_q:
-			  return false;
-			  break;
-
-			case SDLK_LEFT:
-			    xzoom = max(0, xzoom - hzoom/8);
-			    redrawzoom = true;
-			    break;
-
-			case SDLK_UP:
-			    yzoom = max(0, yzoom - hzoom/8);
-			    redrawzoom = true;
-			    break;
-
-			case SDLK_RIGHT:
-			    xzoom = min(sum_image->w - wzoom, xzoom + hzoom/8);
-			    redrawzoom = true;
-			    break;
-
-			case SDLK_DOWN:
-			    yzoom = min(sum_image->h - hzoom, yzoom + hzoom/8);
-			    redrawzoom = true;
-			    break;
-
-			case SDLK_PAGEUP:
-			    nwzoom = max(screen->w/2 , (int)(wzoom / sqrt(2.0)));
-			    nhzoom = (nwzoom*screen->h)/screen->w;
-
-			    xzoom += (wzoom - nwzoom)/2;
-			    yzoom += (hzoom - nhzoom)/2;
-
-			    wzoom = nwzoom;
-			    hzoom = nhzoom;
-			    redrawzoom = true;
-			    break;
-
-			case SDLK_PAGEDOWN:
-			    nwzoom = min(sum_image->w , (int)(wzoom * sqrt(2.0)));
-			    nhzoom = (nwzoom*screen->h)/screen->w;
-
-			    xzoom = max(0, xzoom - (nwzoom-wzoom)/2);
-			    if (xzoom+nwzoom > sum_image->w)
-				xzoom = sum_image->w - nwzoom;
-			    wzoom = nwzoom;
-
-			    yzoom = max(0, yzoom - (nhzoom-hzoom)/2);
-			    if (yzoom+nhzoom > sum_image->h)
-				yzoom = sum_image->h - nhzoom;
-			    hzoom = nhzoom;
-
-			    redrawzoom = true;
-			    break;
-
-
-			case SDLK_j:
-			    base++;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_i:
-			    base+=10;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_h:
-			    base--;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_u:
-			    base-=10;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-
-
-			case SDLK_l:
-			    gain++;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_p:
-			    gain+=10;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_k:
-			    gain--;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_o:
-			    gain-=10;
-			    redrawzoom = true;
-			    redrawsum = true;
-			    redrawhist = true;
-			    break;
-
-			case SDLK_t:
-			    interactfly = true;
-			    break;
-
-			case SDLK_s:
-			    wemustsave = true;
-			    break;
-
-			case SDLK_g:
-			    interactfly = false;
-			    break;
-
-			case SDLK_SPACE:
-			    wemustloop = false;
-			    break;
-
-			default:
-			    break;
-		    }
-		    break;
-	    }
-	}
-	if (nbimage != 0) {
-	    if (redrawzoom) {
-		sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain,
-					xzoom, yzoom, wzoom, hzoom);
-		redrawzoom = false;
-	    }
-	    if (redrawsum) {
-		sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain);
-		redrawsum = false;
-	    }
-	    if (redrawhist) {
-		SDL_Rect r;
-		r.x = screen->w/2;
-		r.y = 0;
-		r.w = screen->w/2;
-		r.h = screen->h/2;
-		SDL_FillRect(screen, &r, SDL_MapRGB(screen->format, 0, 0, 0));
-		sum_image->renderhist (*screen, screen->w/2, 0, screen->w/2, screen->h/2, base, gain);
-		redrawhist = false;
-	    }
-	    if (wemustsave) {
-static int nbprint = 0;
-		char fname[50];
-		snprintf (fname, 50, "test_%04d.png", nbprint);
-		nbprint++;
-		cerr << "saving corrected pic " << fname << "..." << endl;
-		sum_image->savecorrected (fname, base, gain);
-		cerr << " ... done." << endl;
-		wemustsave = false;
-	    }
-	}
-    
-	 if (	pollingdir &&
-		watchdir (dirname, regexp, cregexp)
-	    ) {
-
-	    map <string, int>::iterator mi;
-	    for (mi=fmatch.begin() ; mi!=fmatch.end() ; mi++) {
-		if (mi->second == 0) {
-		    if (ref_image == NULL) {
-			ref_image = load_image (mi->first.c_str());
-			if (ref_image != NULL) {
-			    if (nbimage != 0)
-				cerr << "warning, the reference image in use isn't the first in the list" << endl;
-if (doublesize) {
-    if (ref_image != NULL)
-    {	ImageRGBL *imageb = ref_image->doublescale ();
-	delete (ref_image);
-	ref_image = imageb;
-// ref_image->save_png ("ref.png");
-    }
-}
-
-			    StarsMap* mmap = ref_image->graphe_stars();
-			    if (mmap == NULL) {
-				cerr << "could not allocate reference stars-map : bailing out ..." << endl;
-				return -1;
-			    }
-			    ref_starmap = *mmap;
-cout << "reference star map : " << ref_starmap.size () << " stars." << endl;
-
-			    cout << "reference image is '" << mi->first << "'" << endl;
-			    if (sum_image == NULL) {
-				sum_image = new ImageRGBL (ref_image->w, ref_image->h);
-				if (sum_image == NULL) {
-				    cerr << "could not allocate sum_image : bailing out ..." << endl;
-				    return -1;
-				}
-				sum_image->zero();
-				sum_image->turnmaskon(0);
-			    }
-			}
-		    }
-
-		    if ((ref_image != NULL) && (try_add_pic (mi->first.c_str()) == 0)) {
-			nbimage ++;
-			redrawzoom = true;
-			redrawsum = true;
-			redrawhist = true;
-			mi->second ++;
-		    }
-		}
-	    }
-	}
-    }
-
-    return true;
-}
+	// JDJDJDJD interact bloc was here
 
 } // namespace exposit
 
 using namespace exposit; 
 using namespace std;
-
-int simplenanosleep (int ms) {
-    timespec rqtp, rmtp;
-    rqtp.tv_sec = 0, rqtp.tv_nsec = ms*1000000;
-
-    return nanosleep (&rqtp, &rmtp);
-}
 
 void * thread_interact (void *) {
     debug = 1;
