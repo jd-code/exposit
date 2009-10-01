@@ -1,5 +1,5 @@
-COMPFLAGS=-O4
-#COMPFLAGS=-g
+#COMPFLAGS=-O4
+COMPFLAGS=-g
 
 
 all: exposit
@@ -31,8 +31,11 @@ vimtest: exposit
 	# ./exposit ../../m101/*07.jpg `ls ../../m101/*.jpg | head -10`
 	# ./exposit ../../m101/*07.jpg ../../m101/*67.jpg
 
-exposit: simplechrono.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o 
-	g++ -Wall ${COMPFLAGS} -o exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o `sdl-config --cflags --libs` -lSDL_image
+exposit: simplechrono.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o interact.o
+	g++ -Wall ${COMPFLAGS} -o exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image
+
+interact.o: interact.cpp simplechrono.h
+	g++ -Wall ${COMPFLAGS} -c interact.cpp `sdl-config --cflags`
 
 exposit.o: exposit.cpp simplechrono.h
 	g++ -Wall ${COMPFLAGS} -c exposit.cpp `sdl-config --cflags`

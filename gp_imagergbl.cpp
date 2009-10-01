@@ -26,6 +26,8 @@ bool ImageRGBL::chrono = false;
 	chrono = c;
     }
 
+
+
     void putpixel(SDL_Surface &surface, int x, int y, int r, int g, int b)
     {
 	Uint32 pixel = SDL_MapRGB(surface.format, r, g, b);

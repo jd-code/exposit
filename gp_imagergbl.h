@@ -17,7 +17,6 @@ class PixelCoord {
 	PixelCoord (int x, int y) : x(x), y(y) {}
 };
 
-
 class ImageRGBL {
 
 	void freeall (void);
