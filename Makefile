@@ -1,5 +1,5 @@
-#COMPFLAGS=-O4
-COMPFLAGS=-g
+COMPFLAGS=-O4
+#COMPFLAGS=-g
 
 
 all: exposit
@@ -12,8 +12,8 @@ vimtest: exposit
 	#### ./exposit -falloff=falloff_180mmf2.8.png -watch=./capt."*\."jpg
 
 	# test avec m51 / decalage en patterns ! explosion sur l'ouverture du premier fichier
-	./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png \
-	/home/jd/series/e/a/ttt/capt0001.jpg /home/jd/series/e/a/ttt/*
+#	./exposit -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png \
+#	/home/jd/series/e/a/ttt/capt0001.jpg /home/jd/series/e/a/ttt/*
 
 	# test de rotation
 	# ./exposit -finetune -falloff=/home/jd/homecacao/simplestacker/falloff_180mmf2.8.png /home/jd/series/t1/20s/capt0002.jpg /home/jd/series/t1/u/capt0011.jpg
@@ -62,6 +62,6 @@ graphutils.o: graphutils.c graphutils.h
 	gcc -Wall ${COMPFLAGS} -c graphutils.c `sdl-config --cflags`
 
 clean:
-	rm -f graphutils.o jeuchar.o draw.o exposit.o starsmap.o gp_imagergbl.o vstar.o simplechrono.o exposit
+	rm -f graphutils.o jeuchar.o draw.o exposit.o starsmap.o gp_imagergbl.o vstar.o simplechrono.o exposit interact.o
 
 distclean: clean

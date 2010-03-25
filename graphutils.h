@@ -2,8 +2,11 @@
  * $Id: graphutils.h 389 2004-07-10 13:45:21Z jd $
  * GrapeFruit Copyright (C) 2002,2003 Cristelle Barillon & Jean-Daniel Pauget
  * a whole set of graphical utilities for SDL
+ * Exposit Copyright (C) 2009,2010 Cristelle Barillon & Jean-Daniel Pauget
+ * efficiently stacking astro pics
  *
  * grapefruit@disjunkt.com  -  http://grapefruit.disjunkt.com/
+ * exposit@disjunkt.com  -  http://exposit.disjunkt.com/
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

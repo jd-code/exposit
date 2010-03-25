@@ -1,3 +1,27 @@
+/* 
+ * Exposit Copyright (C) 2009,2010 Cristelle Barillon & Jean-Daniel Pauget
+ * efficiently stacking astro pics
+ *
+ * exposit@disjunkt.com  -  http://exposit.disjunkt.com/
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * 
+ * you can also try the web at http://www.gnu.org/
+ *
+ */
+
 #ifndef GPIMAGERGBLINCLUDED
 #define GPIMAGERGBLINCLUDED
 
@@ -34,6 +58,7 @@ class ImageRGBL {
 
     public:
 	int w, h;
+	int maxlev;
 	int **r, **g, **b, **l, **msk;
 	bool isallocated;
 	bool histog_valid;
@@ -42,7 +67,8 @@ class ImageRGBL {
 	    maxb, minb,
 	    maxl, minl,
 	    curmsk;
-	map<int,int> hr, hg, hb, hl;
+	map<int,int> hr, hg, hb, hl;	// histogramms
+	int Max;			// if histog_valid, the highest value in h*
 
 static int debug;
 static bool chrono;
@@ -84,6 +110,9 @@ static bool chrono;
 	ImageRGBL *rotate (double ang);
 	ImageRGBL *doublescale (void);
 
+    void render_onehist (int base, int noise, int gain, map <int,int> &hs, int Max, int vmax,
+		SDL_Surface &surface, int xoff, int yoff, int width, int height,
+		Uint32 cline, Uint32 color);
 
 	void renderhist (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int gain);
 

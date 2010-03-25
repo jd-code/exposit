@@ -1,3 +1,27 @@
+/* 
+ * Exposit Copyright (C) 2009,2010 Cristelle Barillon & Jean-Daniel Pauget
+ * efficiently stacking astro pics
+ *
+ * exposit@disjunkt.com  -  http://exposit.disjunkt.com/
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * 
+ * you can also try the web at http://www.gnu.org/
+ *
+ */
+
 #include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -17,6 +41,8 @@
 #include <list>
 #include <vector>
 #include <map>
+
+#include <ext/stdio_filebuf.h>
 
 #include "draw.h"
 #include "graphutils.h"
@@ -62,7 +88,163 @@ int simplenanosleep (int ms) {
     return nanosleep (&rqtp, &rmtp);
 }
 
+ImageRGBL *load_imageppm (istream &fin, const string& fname) {
+    char c;
+    string s;
+    int i;
+
+    for (i=0 ; i<2 ; i++) {
+	if (!fin.get(c))
+	    break;
+	s += c;
+    }
+    if (s != "P6") {
+	cerr << "load_imageppm: missing P6 signature at begining of file '"  << fname << "'" << endl;
+	return NULL;
+    }
+
+    while (fin && fin.get(c) && isspace(c)) {}
+    fin.unget();
+    s = "";
+    while (fin && fin.get(c) && isdigit(c))
+	s += c;
+    fin.unget();
+    int width = atoi(s.c_str());
+
+    while (fin && fin.get(c) && isspace(c)) {}
+    fin.unget();
+    s = "";
+    while (fin && fin.get(c) && isdigit(c))
+	s += c;
+    fin.unget();
+    int height = atoi(s.c_str());
+
+    while (fin && fin.get(c) && isspace(c)) {}
+    fin.unget();
+    s = "";
+    while (fin && fin.get(c) && isdigit(c))
+	s += c;
+    fin.unget();
+    int maxval = atoi(s.c_str());
+    if ((maxval < 0) || (maxval >= 65536)) {
+	cerr << "load_imageppm: '"  << fname << "' maxval was read as : " << maxval << " cannot perform further readings" << endl;
+	return NULL;
+    }
+    int datasize = (maxval < 256) ? 1 : 2;
+
+    if (!(fin && fin.get(c))) {
+	cerr << "load_imageppm: '"  << fname << "' some premature end of file ?" << endl;
+	return NULL;
+    }
+    if (!isspace(c)) {
+	cerr << "load_imageppm: '"  << fname << "' warning : not a isspace-delimiter at end of header ?" << endl;
+    }
+
+    ImageRGBL *image = new ImageRGBL (width, height);
+    int x, y;
+    bool badexit = false;
+    int r=0, g=0, b=0;
+    for (y=0 ; y<height ; y++) {
+	badexit = false;
+	for (x=0 ; x<width ; x++) {
+	    char c, cc;
+	    if (!fin) { badexit = true; break; }
+	    switch (datasize) {
+		case 1:
+		    fin.get(c); r = (int)(unsigned char)c;
+		    fin.get(c); g = (int)(unsigned char)c;
+		    fin.get(c); b = (int)(unsigned char)c;
+		    break;
+		case 2:
+		    fin.get(c); fin.get(cc); r = 256*((int)(unsigned char)c) + (int)(unsigned char)cc;
+		    fin.get(c); fin.get(cc); g = 256*((int)(unsigned char)c) + (int)(unsigned char)cc;
+		    fin.get(c); fin.get(cc); b = 256*((int)(unsigned char)c) + (int)(unsigned char)cc;
+		    break;
+		default:
+		    break;
+	    }
+	    image->r[x][y] = r;
+	    image->g[x][y] = g;
+	    image->b[x][y] = b;
+	}
+	if (badexit) break;
+    }
+    if (badexit) {
+	delete image;
+	return NULL;
+    }
+    image->setluminance();
+    image->maxlev = 65536;
+
+    cout << "loaded '" << fname <<"'"
+	 << " " << maxval << " maxval"
+	 << endl;
+
+    return image;
+}
+
+ImageRGBL *load_imageppm (const char * fname) {
+    ifstream fin (fname);
+    if (!fin) {
+	int e = errno;
+	cerr << "load_imageppm could not load file as ppm '" << fname <<"' : " << strerror (e) << endl;
+	return NULL;
+    }
+    return load_imageppm (fin, fname);
+}
+
+map <string,int> matchdcrawfiles;
+
+// sets an initial list of files handled with dcraw
+void init_dcrawfile (void) {
+    const char* l[] = { "nef", "NEF",
+			"cr2", "CR2",
+			NULL
+		      };
+    int i;
+    for (i=0 ; l[i] != NULL ; i++) 
+	matchdcrawfiles [l[i]] = 1;
+}
+
+string dcraw_command = "dcraw -c -4";
+
+ImageRGBL *dcraw_treat (const char * fname) {
+    string command(dcraw_command);
+    command += " '";
+    command += fname;
+    command += "'";
+    FILE *pin = popen (command.c_str(), "r");
+    if (pin == NULL) {
+	int e = errno;
+	cerr << "piping to " << command << " went wrong : " << strerror(e) << endl;
+	return NULL;
+    }
+    cerr << "start reading pipe from '" << command << "' ..." << endl ;
+
+    __gnu_cxx::stdio_filebuf<char> pipeco (pin, ios_base::in);
+    // basic_filebuf pipeco (pin, ios_base::in, 4096);
+    istream in(&pipeco);
+
+    ImageRGBL *image = load_imageppm (in, fname);
+    pclose (pin);
+    cerr << " ... done." << endl;
+    return image;
+}
+
 ImageRGBL *load_image (const char * fname) {
+    if (strlen (fname) > 3) {
+	if (strncmp (fname+strlen (fname)-3, "ppm", 3) == 0)
+	    return load_imageppm (fname);
+    }
+    {	string s(fname);
+	size_t p = s.find_last_of ('.');
+	if (p !=string::npos) {
+	    if (matchdcrawfiles.find(s.substr(p+1)) != matchdcrawfiles.end()) {
+		return dcraw_treat (fname);
+	    }
+	}
+    }
+
     SDL_Surface *surface = IMG_Load(fname);
     if (surface == NULL) {
 	int e = errno;
@@ -74,7 +256,6 @@ ImageRGBL *load_image (const char * fname) {
 	 << " " << (int)surface->format->BytesPerPixel << " bytes/px"
 	 << endl;
 
-    // ImageRGBL input(surface->w, surface->h);
     ImageRGBL *image = new ImageRGBL(*surface);
 
     SDL_FreeSurface (surface);
@@ -121,7 +302,7 @@ int try_add_pic (const char * fname) {
     if (image != NULL) {
 
 	static Chrono chrono_rendering("rendering image"); chrono_rendering.start();
-	image->render (*screen, screen->w/2, screen->h/2, screen->w/2, screen->h/2, 0, 256);
+	image->render (*screen, screen->w/2, screen->h/2, screen->w/2, screen->h/2, 0, image->maxlev);
 	chrono_rendering.stop(); if (chrono) cout << chrono_rendering << endl;
 
 	StarsMap *starmap = image->graphe_stars();
@@ -286,6 +467,8 @@ int main (int nb, char ** cmde) {
 	cerr << "could not create interaction thread : " << strerror (e) << endl;
     }
 
+    init_dcrawfile (); // sets an initial list of files handled with dcraw
+
     int i;
     int nbimage = 0;
     for (i=1 ; i<nb ; i++) {
@@ -340,6 +523,8 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 	    debug = atoi (cmde[i]+7);
 	    ImageRGBL::setdebug (debug);
 	    StarsMap::setdebug (debug);
+	} else if (strncmp ("-dcraw=", cmde[i], 7) == 0) {
+	    dcraw_command = cmde[i]+7;
 	} else if (strncmp ("-doublescale", cmde[i], 12) == 0) {
 	    doublesize = true;
 	} else if (strncmp ("-noise=", cmde[i], 7) == 0) {
