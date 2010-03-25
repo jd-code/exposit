@@ -1,3 +1,27 @@
+/* 
+ * Exposit Copyright (C) 2009,2010 Cristelle Barillon & Jean-Daniel Pauget
+ * efficiently stacking astro pics
+ *
+ * exposit@disjunkt.com  -  http://exposit.disjunkt.com/
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * 
+ * you can also try the web at http://www.gnu.org/
+ *
+ */
+
 #include <math.h>
 
 #define PNG_DEBUG 3
@@ -171,23 +195,23 @@ bool ImageRGBL::chrono = false;
     }
 
     ImageRGBL::ImageRGBL (int w, int h)
-	: w(w), h(h),
+	: w(w), h(h), maxlev(256),
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
-	  curmsk (0)
+	  curmsk (0),  Max(0)
     {   
 	allocateall ();
     }
 
     ImageRGBL::ImageRGBL (SDL_Surface & surface)
-	: w(surface.w), h(surface.h),
+	: w(surface.w), h(surface.h), maxlev(256),
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
-	  curmsk (0)
+	  curmsk (0),  Max(0)
     {
 	allocateall ();
 	if (isallocated) {
@@ -344,6 +368,51 @@ bool ImageRGBL::chrono = false;
 	freeall ();
     }
 
+    void ImageRGBL::render_onehist (int base, int noise, int gain, map <int,int> &hs, int Max, int vmax,
+		SDL_Surface &surface, int xoff, int yoff, int width, int height,
+		Uint32 cline, Uint32 color) {
+	Draw_init (&surface);
+	map<int,int>::iterator mi, mj;
+
+	int predx = 0, predy = height;
+
+	Draw_line (xoff+((base+noise)*width)/Max,      yoff,  xoff+((base+noise)*width)/Max,      yoff+height-1, cline);
+	Draw_line (xoff+((base+noise+gain)*width)/Max, yoff,  xoff+((base+noise+gain)*width)/Max, yoff+height-1, cline);
+	for (mi=hs.begin() ; (mi!=hs.end() && (mi->first < base+noise+gain)) ; mi++);
+	if (mi!=hs.end()) {
+	    stringstream s;
+	    s << noise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / vmax))/10 << "%" << ends;
+	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height+32, color, s.str().c_str());
+	}
+
+	int nx, ny;
+
+	if (hs.begin() != hs.end()) {
+	    nx = (hs.begin()-> first * width)/Max;
+	    ny = height;
+	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+	    predx = nx, predy = ny;
+	}
+
+	for (mi=hs.begin() ; mi!=hs.end() ; mi++) {
+	    nx = (mi->first * width)/Max;
+	    ny = (int)(height - ((1+log(mi->second)) * height)/vmax);
+	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+	    predx = nx, predy = ny;
+
+	    mj = mi; mj++;
+	    if ((mj != hs.end()) && ((mj->first - mi->first) > 0x100)) {	// JDJDJDJD this value has to be tunable somewhere !!
+		ny = height;							//          it must match the binary mask used at histograms reduction
+		Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+		predx = nx, predy = ny;
+
+		nx = (mj->first * width)/Max;
+		Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+		predx = nx, predy = ny;
+	    }
+	}
+    }
+
     void ImageRGBL::renderhist (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int gain) {
 //	    map<int,int> hr, hg, hb, hl;
 	map<int,int>::iterator mi, mi_max;
@@ -357,85 +426,93 @@ bool ImageRGBL::chrono = false;
 	for (mi=hr.begin() ; mi!=hr.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	rnoise = mi_max->first -1;
-	rmax = log(vmax);
+	rmax = 2+log(vmax);
 
 	vmax = 0;
 	for (mi=hg.begin() ; mi!=hg.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	gnoise = mi_max->first -1;
-	gmax = log(vmax);
+	gmax = 2+log(vmax);
 
 	vmax = 0;
 	for (mi=hb.begin() ; mi!=hb.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	bnoise = mi_max->first -1;
-	bmax = log(vmax);
-
-	mi = hr.end(); mi--;
-	int Max = mi->first;
-	mi = hg.end(); mi--;
-	Max = max (Max, mi->first);
-	mi = hb.end(); mi--;
-	Max = max (Max, mi->first);
+	bmax = 2+log(vmax);
 
 
 	Draw_init (&surface);
-       
 
-	int predx = 0, predy = height/4;
-	Uint32 cline = SDL_MapRGB(surface.format, 128, 128, 128);
-	Uint32 color = SDL_MapRGB(surface.format, 255, 0, 0);
-	Draw_line (xoff+((base+rnoise)*width)/Max, yoff+predy,      xoff+((base+rnoise)*width)/Max, yoff+predy-height/4, cline);
-	Draw_line (xoff+((base+rnoise+gain)*width)/Max, yoff+predy, xoff+((base+rnoise+gain)*width)/Max, yoff+predy-height/4, cline);
-	for (mi=hr.begin() ; (mi!=hr.end() && (mi->first < base+rnoise+gain)) ; mi++);
-	if (mi!=hr.end()) {
-	    stringstream s;
-	    s << rnoise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / rmax))/10 << "%" << ends;
-	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height/4+32, color, s.str().c_str());
-	}
-	for (mi=hr.begin() ; mi!=hr.end() ; mi++) {
-	    int nx = (mi->first * width)/Max;
-	    int ny = (int)(height/4 - (log(mi->second) * height/4)/rmax);
-	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
-// cout << predx << " " << predy << " " << nx << " " << ny << endl;
-	    predx = nx, predy = ny;
-	}
+//	int predx = 0, predy = height/4;
 
-	predx = 0, predy = 2*height/4;
-	color = SDL_MapRGB(surface.format, 0, 255, 0);
-	Draw_line (xoff+((base+gnoise)*width)/Max, yoff+predy,      xoff+((base+gnoise)*width)/Max, yoff+predy-height/4, cline);
-	Draw_line (xoff+((base+gnoise+gain)*width)/Max, yoff+predy, xoff+((base+gnoise+gain)*width)/Max, yoff+predy-height/4, cline);
-	for (mi=hg.begin() ; (mi!=hg.end() && (mi->first < base+rnoise+gain)) ; mi++);
-	if (mi!=hg.end()) {
-	    stringstream s;
-	    s << rnoise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / rmax))/10 << "%" << ends;
-	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height/4+32, color, s.str().c_str());
-	}
-	for (mi=hg.begin() ; mi!=hg.end() ; mi++) {
-	    int nx = (mi->first * width)/Max;
-	    int ny = (int)(2*height/4 - (log(mi->second) * height/4)/gmax);
-	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
-// cout << predx << " " << predy << " " << nx << " " << ny << endl;
-	    predx = nx, predy = ny;
-	}
+	Uint32 ctext = SDL_MapRGB(surface.format, 128, 128, 128);
+	Uint32 cred = SDL_MapRGB(surface.format, 255, 0, 0);
+	Uint32 cgreen = SDL_MapRGB(surface.format, 0, 255, 0);
+	Uint32 cblue = SDL_MapRGB(surface.format, 0, 0, 255);
 
-	predx = 0, predy = 3*height/4;
-	color = SDL_MapRGB(surface.format, 0, 0, 255);
-	Draw_line (xoff+((base+bnoise)*width)/Max, yoff+predy,      xoff+((base+bnoise)*width)/Max, yoff+predy-height/4, cline);
-	Draw_line (xoff+((base+bnoise+gain)*width)/Max, yoff+predy, xoff+((base+bnoise+gain)*width)/Max, yoff+predy-height/4, cline);
-	for (mi=hb.begin() ; (mi!=hb.end() && (mi->first < base+rnoise+gain)) ; mi++);
-	if (mi!=hb.end()) {
-	    stringstream s;
-	    s << rnoise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / rmax))/10 << "%" << ends;
-	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height/4+32, color, s.str().c_str());
-	}
-	for (mi=hb.begin() ; mi!=hb.end() ; mi++) {
-	    int nx = (mi->first * width)/Max;
-	    int ny = (int)(3*height/4 - (log(mi->second) * height/4)/bmax);
-	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
-// cout << predx << " " << predy << " " << nx << " " << ny << endl;
-	    predx = nx, predy = ny;
-	}
+	render_onehist (base, rnoise, gain, hr, Max, rmax,
+			surface, xoff, yoff, width, height/4,
+			ctext, cred);
+
+	render_onehist (base, gnoise, gain, hg, Max, gmax,
+			surface, xoff, yoff+height/3, width, height/4,
+			ctext, cgreen);
+
+	render_onehist (base, bnoise, gain, hb, Max, bmax,
+			surface, xoff, yoff+2*(height/3), width, height/4,
+			ctext, cblue);
+
+//	Draw_line (xoff+((base+rnoise)*width)/Max, yoff+predy,      xoff+((base+rnoise)*width)/Max, yoff+predy-height/4, cline);
+//	Draw_line (xoff+((base+rnoise+gain)*width)/Max, yoff+predy, xoff+((base+rnoise+gain)*width)/Max, yoff+predy-height/4, cline);
+//	for (mi=hr.begin() ; (mi!=hr.end() && (mi->first < base+rnoise+gain)) ; mi++);
+//	if (mi!=hr.end()) {
+//	    stringstream s;
+//	    s << rnoise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / rmax))/10 << "%" << ends;
+//	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height/4+32, color, s.str().c_str());
+//	}
+//	for (mi=hr.begin() ; mi!=hr.end() ; mi++) {
+//	    int nx = (mi->first * width)/Max;
+//	    int ny = (int)(height/4 - (log(mi->second) * height/4)/rmax);
+//	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+//// cout << predx << " " << predy << " " << nx << " " << ny << endl;
+//	    predx = nx, predy = ny;
+//	}
+//
+//	predx = 0, predy = 2*height/4;
+//	color = SDL_MapRGB(surface.format, 0, 255, 0);
+//	Draw_line (xoff+((base+gnoise)*width)/Max, yoff+predy,      xoff+((base+gnoise)*width)/Max, yoff+predy-height/4, cline);
+//	Draw_line (xoff+((base+gnoise+gain)*width)/Max, yoff+predy, xoff+((base+gnoise+gain)*width)/Max, yoff+predy-height/4, cline);
+//	for (mi=hg.begin() ; (mi!=hg.end() && (mi->first < base+rnoise+gain)) ; mi++);
+//	if (mi!=hg.end()) {
+//	    stringstream s;
+//	    s << rnoise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / rmax))/10 << "%" << ends;
+//	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height/4+32, color, s.str().c_str());
+//	}
+//	for (mi=hg.begin() ; mi!=hg.end() ; mi++) {
+//	    int nx = (mi->first * width)/Max;
+//	    int ny = (int)(2*height/4 - (log(mi->second) * height/4)/gmax);
+//	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+//// cout << predx << " " << predy << " " << nx << " " << ny << endl;
+//	    predx = nx, predy = ny;
+//	}
+//
+//	predx = 0, predy = 3*height/4;
+//	color = SDL_MapRGB(surface.format, 0, 0, 255);
+//	Draw_line (xoff+((base+bnoise)*width)/Max, yoff+predy,      xoff+((base+bnoise)*width)/Max, yoff+predy-height/4, cline);
+//	Draw_line (xoff+((base+bnoise+gain)*width)/Max, yoff+predy, xoff+((base+bnoise+gain)*width)/Max, yoff+predy-height/4, cline);
+//	for (mi=hb.begin() ; (mi!=hb.end() && (mi->first < base+rnoise+gain)) ; mi++);
+//	if (mi!=hb.end()) {
+//	    stringstream s;
+//	    s << rnoise << " " << base << " " << gain << " " << ((int)((1000*log(mi->second)) / rmax))/10 << "%" << ends;
+//	    grapefruit::SDLF_putstr (&surface, xoff+128, yoff+predy-height/4+32, color, s.str().c_str());
+//	}
+//	for (mi=hb.begin() ; mi!=hb.end() ; mi++) {
+//	    int nx = (mi->first * width)/Max;
+//	    int ny = (int)(3*height/4 - (log(mi->second) * height/4)/bmax);
+//	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
+//// cout << predx << " " << predy << " " << nx << " " << ny << endl;
+//	    predx = nx, predy = ny;
+//	}
 
 	SDL_UpdateRect(&surface, 0, 0, 0, 0);
     }
@@ -832,22 +909,42 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	if (msk == NULL) {
 cout << "fasthistogramme sans curmsk" << endl;
 	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
-		hr[r[x][y]] ++;
-		hg[g[x][y]] ++;
-		hb[b[x][y]] ++;
-		hl[l[x][y]] ++;
+//		hr[r[x][y]] ++;
+//		hg[g[x][y]] ++;
+//		hb[b[x][y]] ++;
+//		hl[l[x][y]] ++;
+		hr[r[x][y]&0xFFFFFFF0] ++;
+		hg[g[x][y]&0xFFFFFFF0] ++;
+		hb[b[x][y]&0xFFFFFFF0] ++;
+		hl[l[x][y]&0xFFFFFFF0] ++;
 	    }
 	} else {
 cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
 		if (msk[x][y] == curmsk) {
-		    hr[r[x][y]] ++;
-		    hg[g[x][y]] ++;
-		    hb[b[x][y]] ++;
-		    hl[l[x][y]] ++;
+//		    hr[r[x][y]] ++;
+//		    hg[g[x][y]] ++;
+//		    hb[b[x][y]] ++;
+//		    hl[l[x][y]] ++;
+		    hr[r[x][y]&0xFFFFFFF0] ++;
+		    hg[g[x][y]&0xFFFFFFF0] ++;
+		    hb[b[x][y]&0xFFFFFFF0] ++;
+		    hl[l[x][y]&0xFFFFFFF0] ++;
 		}
 	    }
 	}
+cerr << "hr.size() = " << hr.size() << endl
+     << "hg.size() = " << hg.size() << endl
+     << "hb.size() = " << hb.size() << endl
+     << "hl.size() = " << hl.size() << endl;
+
+	map<int,int>::iterator mi;
+	mi = hr.end(); mi--;
+	Max = mi->first;
+	mi = hg.end(); mi--;
+	Max = max (Max, mi->first);
+	mi = hb.end(); mi--;
+	Max = max (Max, mi->first);
     }
 
     void ImageRGBL::fasthistogramme (int step) {
