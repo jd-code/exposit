@@ -1,0 +1,113 @@
+
+Notes for installing / testing exposit
+
+- early-beta-0.03
+
+    at this stage exposit can
+     - take a list of jpg to be processed (from the command line only)
+     - take a reference jpg for correcting fall-off (or related aberations)
+       (command-line only)
+     - propose an initial noise-cut and gain in order to reveal nebulous objects
+       on the first frame (interactive)
+     - display 
+	- the intermediate resulting stack with current cut-off and gain proposition
+	- the current frame with same cut-off and gain (corrected in regard of dynamic)
+        - a customizable zoom on some part of the intermediate stack
+        - the orginal last frame (without gain or cut-off)
+     - use the first frame as a stacking reference for the following frames
+     - find some vectorial correlation and apply a rapid translation+rotation
+       on each frame according to the reference frame
+     - try within a set of rotation/translation shift which combination gives
+       the supposely best result at aligning each following frames
+     - offer a rough noise level-cutoff and gain adjustment before saving to a png
+     - quit
+
+
+    exposit is slowly evolving from a command-line only to
+    a user-interactive application. yet most things are
+    command-line only, and it cannot be used without some
+    mandatory command-line inputs :
+
+	-debug=X	sets the debug level (0 none)
+
+	-dcraw="full_command_line_for_dcraw"
+			tune the invoking command for dcraw (special path for
+			testing a dedicated/new release of dcraw, etc ...)
+			defaults to "dcraw -c -4"
+
+	-adddcrawmatch="ext1 [... extn ...]"
+			add file-extensions matching for dcraw decoding. useful
+			for handling raw files with esoteric extensions.
+			the default list only has "nef NEF cr2 CR2"
+
+	-falloff=falloffpic
+			sets the fall-off reference pic. this pic is supposed
+			to contain ani, as optimal as it can, pic showing the
+			brightness variation one can observe from within one part
+			of a frame to another with a given optical combination.
+			each frame will be leverage in order to flatten those
+			variation, it might increase noise at some part of the
+			stack, but will help at corner fall-off  correction.
+			some would refer this pic as "white(s)"
+			I got mine by shooting some random parts of a great blue
+			sky with the same aperture settings as used for astro, and
+			mixing them all (in gimp) in order to increase uniformity.
+
+	-finetune	enables trying a set of rotation/shift around the vectorial
+			alignement proposed in order to find a better alignment result.
+			long, and most of the time useless. mostly a remain of older
+			algorithms.
+
+	-doublescale	uggly double-sampling mode
+			try to double sample (4 times more memory) each frame
+			before stacking. one could expect some subsample
+			alignment could be detected this way, but a better
+			resampling is needed at the first place.
+
+	-noise=noisepic	add a noise reference pic (blacks) in the noise pic list.
+			the noise reference would be substracted to each frame.
+			noise removal did not give any good result this way yet.
+
+	-watch=[dirname/]fileregexp
+			a directory path name + file regexp match combination in order
+			to wait for pic to appear in the said directory and stack them
+			on the fly. the purpose is to stack pics as soon as they are
+			shot. real field use as proven it's difficult to use because
+			the first pic must be the reference, so it has to be rather
+			clean, and usually the first shot is never clean enough ...
+			a much better user interface is needed here !
+			(not tested for a while, might be broken)
+
+	interactive keys
+	    the mouse is useless, for instance.
+	    arrows should navigate the menu, and escape go back to previous menu.
+	    enter/space enters/apply the functions.
+
+	    now, the menu part isn't finished, so most function are still simply bound
+	    to keys :
+		U I     fast decrease/increase the noise cut-off
+		H J	slow decrease/increase the noise cut-off
+
+		O P	fast decrease/increase the upper cutoff level
+		K L	slow decrease/increase the upper cutoff level
+
+		G	(go !) toggles to the non interactive mode, all subsequent
+			frame additions will be performed without waiting for the
+			user to press "add frame" until no more pic are available. 
+
+		S	saves a png of the stack with gain/cutoff applied
+
+    dependencies :
+	on debian system those package are needed for the build
+	    libsdl-image1.2-dev
+	    libsdl1.2-dev
+	equivalent packages should exist on most distros
+
+
+    example of use :
+	exposit -falloff=falloff_180mmf2.8.png capt0166.jpg *.jpg	
+			  white                 ref          pics
+
+	press "G" then "add frame" the progam will add all pic
+	to the stack and finally wait for final level adjustments
+	"S" will save a png at the end

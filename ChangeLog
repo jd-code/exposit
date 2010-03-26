@@ -1,0 +1,10 @@
+- early-beta-0.03
+    skipped first histogram entry at determining the histogram peak
+    added -adddcrawmatch option
+- early-beta-0.03
+    added ppm files reading
+    corrected gain tuning according to histograms sizes
+    enlighted histograms via binary mask
+    added reading raw files via piped dcraw
+- early-beta-0.02
+    public appearance 2010-03-01

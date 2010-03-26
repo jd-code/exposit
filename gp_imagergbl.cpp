@@ -396,7 +396,9 @@ bool ImageRGBL::chrono = false;
 
 	for (mi=hs.begin() ; mi!=hs.end() ; mi++) {
 	    nx = (mi->first * width)/Max;
-	    ny = (int)(height - ((1+log(mi->second)) * height)/vmax);
+	    int hh = (int)(((1+log(mi->second)) * height)/vmax);
+	    hh = (hh > height) ? height : hh;
+	    ny = height - hh;
 	    Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
 	    predx = nx, predy = ny;
 
@@ -423,19 +425,19 @@ bool ImageRGBL::chrono = false;
 	fasthistogramme (1);
 
 	vmax = 0;
-	for (mi=hr.begin() ; mi!=hr.end() ; mi++)
+	for (mi=hr.begin(),mi++ ; mi!=hr.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	rnoise = mi_max->first -1;
 	rmax = 2+log(vmax);
 
 	vmax = 0;
-	for (mi=hg.begin() ; mi!=hg.end() ; mi++)
+	for (mi=hg.begin(),mi++ ; mi!=hg.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	gnoise = mi_max->first -1;
 	gmax = 2+log(vmax);
 
 	vmax = 0;
-	for (mi=hb.begin() ; mi!=hb.end() ; mi++)
+	for (mi=hb.begin(),mi++ ; mi!=hb.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	bnoise = mi_max->first -1;
 	bmax = 2+log(vmax);
@@ -530,15 +532,15 @@ bool ImageRGBL::chrono = false;
 
 	fasthistogramme (1);
 	vmax = 0;
-	for (mi=hr.begin() ; mi!=hr.end() ; mi++)
+	for (mi=hr.begin(),mi++ ; mi!=hr.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	rnoise = mi_max->first -1;
 	vmax = 0;
-	for (mi=hg.begin() ; mi!=hg.end() ; mi++)
+	for (mi=hg.begin(),mi++ ; mi!=hg.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	gnoise = mi_max->first -1;
 	vmax = 0;
-	for (mi=hb.begin() ; mi!=hb.end() ; mi++)
+	for (mi=hb.begin(),mi++ ; mi!=hb.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	bnoise = mi_max->first -1;
 if (debug)
@@ -616,15 +618,15 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 
 	fasthistogramme (5);
 	vmax = 0;
-	for (mi=hr.begin() ; mi!=hr.end() ; mi++)
+	for (mi=hr.begin(),mi++ ; mi!=hr.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	rnoise = mi_max->first -1;
 	vmax = 0;
-	for (mi=hg.begin() ; mi!=hg.end() ; mi++)
+	for (mi=hg.begin(),mi++ ; mi!=hg.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	gnoise = mi_max->first -1;
 	vmax = 0;
-	for (mi=hb.begin() ; mi!=hb.end() ; mi++)
+	for (mi=hb.begin(),mi++ ; mi!=hb.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	bnoise = mi_max->first -1;
 if (debug)
@@ -660,15 +662,15 @@ cout << " render: " << rnoise << " " << gnoise << " " << bnoise << endl;
 
 	fasthistogramme (1);
 	vmax = 0;
-	for (mi=hr.begin() ; mi!=hr.end() ; mi++)
+	for (mi=hr.begin(),mi++ ; mi!=hr.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	rnoise = mi_max->first -1;
 	vmax = 0;
-	for (mi=hg.begin() ; mi!=hg.end() ; mi++)
+	for (mi=hg.begin(),mi++ ; mi!=hg.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	gnoise = mi_max->first -1;
 	vmax = 0;
-	for (mi=hb.begin() ; mi!=hb.end() ; mi++)
+	for (mi=hb.begin(),mi++ ; mi!=hb.end() ; mi++)
 	    if (mi->second > vmax) { vmax = mi->second; mi_max = mi; }
 	bnoise = mi_max->first -1;
 if (debug)

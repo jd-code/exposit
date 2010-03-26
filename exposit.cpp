@@ -206,6 +206,23 @@ void init_dcrawfile (void) {
 	matchdcrawfiles [l[i]] = 1;
 }
 
+void adddcrawmatch (string s) {
+    size_t p = 0;
+    string m;
+    while (p<s.size()) {
+	while ((p<s.size()) && (!isspace(s[p]))) {
+	    m += s[p];
+	    p++;
+	}
+	if (m.size() > 0) {
+	    cerr << "adding *." << m << " to dcraw-matched files" << endl;
+	    matchdcrawfiles[m] = 1;
+	}
+	m = "";
+	while ((p<s.size()) &&isspace(s[p])) p++;
+    }
+}
+
 string dcraw_command = "dcraw -c -4";
 
 ImageRGBL *dcraw_treat (const char * fname) {
@@ -437,7 +454,7 @@ using namespace exposit;
 using namespace std;
 
 void * thread_interact (void *) {
-    debug = 1;
+//    debug = 1;
     if (debug) cerr << "entree dans thread_interact" << endl;
 
     SDL_Init(SDL_INIT_VIDEO);
@@ -525,6 +542,8 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 	    StarsMap::setdebug (debug);
 	} else if (strncmp ("-dcraw=", cmde[i], 7) == 0) {
 	    dcraw_command = cmde[i]+7;
+	} else if (strncmp ("-adddcrawmatch=",cmde[i], 15) == 0) {
+	    adddcrawmatch (cmde[i]+15);
 	} else if (strncmp ("-doublescale", cmde[i], 12) == 0) {
 	    doublesize = true;
 	} else if (strncmp ("-noise=", cmde[i], 7) == 0) {
