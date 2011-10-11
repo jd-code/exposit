@@ -32,6 +32,20 @@ namespace exposit {
 
     using namespace std;
 
+    int VStar::distance_eucl (int rx, int ry) {
+	double	da1 = x - rx,
+		da2 = y - ry,
+		d = sqrt (da1*da1 + da2*da2);
+	return (int) d;
+    }    
+
+    int VStar::distance_eucl (VStar const &s) {
+	double	da1 = x - s.x,
+		da2 = y - s.y,
+		d = sqrt (da1*da1 + da2*da2);
+	return (int) d;
+    }    
+
     int VStar::distance_2angles (VStar const &s) {
 	double	da1 = a1 - s.a1,
 		da2 = a2 - s.a2,
@@ -45,7 +59,7 @@ namespace exposit {
 		da1 = d1 - s.d1,
 		da2 = d2 - s.d2,
 		d = sqrt (da0*da0 + da1*da1 + da2*da2);
-		d /= 10;
+		d /= 10;    // JDJDJDJD il faudrait l'adapter a la taille de l'image .... initialement 3000x2000
 	return (int) d;
     }
 

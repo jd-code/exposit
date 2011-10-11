@@ -76,32 +76,8 @@ static bool chrono;
 	~ImageRGBL ();
 
 	ImageRGBL (int w, int h);
-//	    : w(w), h(h),
-//	      r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
-//	      isallocated(false),
-//	      histog_valid(false),
-//	      maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
-//	      curmsk (0)
-//	{   
-//	    allocateall ();
-//	}
 
-	ImageRGBL (SDL_Surface & surface);
-//	    : w(surface.w), h(surface.h),
-//	      r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
-//	      isallocated(false),
-//	      histog_valid(false),
-//	      maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
-//	      curmsk (0)
-//	{
-//	    allocateall ();
-//	    if (isallocated) {
-//		int x, y;
-//		for (x=0 ; x<w ; x++) for (y=0 ; y<h ; y++)
-//		    getpixel (surface, x, y, r[x][y], g[x][y], b[x][y]);
-//	    }
-//	    setluminance();
-//	}
+	ImageRGBL (SDL_Surface & surface, int lcrop = 0, int rcrop = 0, int tcrop = 0, int bcrop = 0);
 
 	bool turnmaskon (int defvalue = 1);
 	void setluminance (void);
@@ -120,6 +96,9 @@ static bool chrono;
 
 	ImageRGBL *subsample (int sub);
 
+	void rendermax (SDL_Surface &surface, int xoff, int yoff, int width, int height);
+	void renderseuil (SDL_Surface &surface, int xoff, int yoff, int width, int height, int seuil);
+	void rendernodiff (SDL_Surface &surface, int xoff, int yoff, int width, int height);
 	void render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs);
 
 	bool save_png (const char * fname);

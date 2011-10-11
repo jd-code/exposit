@@ -65,7 +65,10 @@ bool doublesize = false;
 bool finetune = false;		// must-we perform fine tuning ?
 SDL_Surface* screen = NULL;
 
-
+int lcrop = 0,
+    rcrop = 0,
+    tcrop = 0,
+    bcrop = 0;
 
 //	inline int max (int a, int b) {
 //	    if (a>b)
@@ -88,7 +91,7 @@ int simplenanosleep (int ms) {
     return nanosleep (&rqtp, &rmtp);
 }
 
-ImageRGBL *load_imageppm (istream &fin, const string& fname) {
+ImageRGBL *load_imageppm (istream &fin, const string& fname, int lcrop, int rcrop, int tcrop, int bcrop) {
     char c;
     string s;
     int i;
@@ -140,7 +143,7 @@ ImageRGBL *load_imageppm (istream &fin, const string& fname) {
 	cerr << "load_imageppm: '"  << fname << "' warning : not a isspace-delimiter at end of header ?" << endl;
     }
 
-    ImageRGBL *image = new ImageRGBL (width, height);
+    ImageRGBL *image = new ImageRGBL (width-lcrop-rcrop, height-tcrop-bcrop);
     int x, y;
     bool badexit = false;
     int r=0, g=0, b=0;
@@ -163,9 +166,11 @@ ImageRGBL *load_imageppm (istream &fin, const string& fname) {
 		default:
 		    break;
 	    }
-	    image->r[x][y] = r;
-	    image->g[x][y] = g;
-	    image->b[x][y] = b;
+	    if ((x>=lcrop) && (x<width-rcrop) && (y>=tcrop) && (y<height-bcrop)) {
+		image->r[x-lcrop][y-tcrop] = r;
+		image->g[x-lcrop][y-tcrop] = g;
+		image->b[x-lcrop][y-tcrop] = b;
+	    }
 	}
 	if (badexit) break;
     }
@@ -183,14 +188,14 @@ ImageRGBL *load_imageppm (istream &fin, const string& fname) {
     return image;
 }
 
-ImageRGBL *load_imageppm (const char * fname) {
+ImageRGBL *load_imageppm (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop) {
     ifstream fin (fname);
     if (!fin) {
 	int e = errno;
 	cerr << "load_imageppm could not load file as ppm '" << fname <<"' : " << strerror (e) << endl;
 	return NULL;
     }
-    return load_imageppm (fin, fname);
+    return load_imageppm (fin, fname, lcrop, rcrop, tcrop, bcrop);
 }
 
 map <string,int> matchdcrawfiles;
@@ -242,16 +247,16 @@ ImageRGBL *dcraw_treat (const char * fname) {
     // basic_filebuf pipeco (pin, ios_base::in, 4096);
     istream in(&pipeco);
 
-    ImageRGBL *image = load_imageppm (in, fname);
+    ImageRGBL *image = load_imageppm (in, fname, lcrop, rcrop, tcrop, bcrop);
     pclose (pin);
     cerr << " ... done." << endl;
     return image;
 }
 
-ImageRGBL *load_image (const char * fname) {
+ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop) {
     if (strlen (fname) > 3) {
 	if (strncmp (fname+strlen (fname)-3, "ppm", 3) == 0)
-	    return load_imageppm (fname);
+	    return load_imageppm (fname, lcrop, rcrop, tcrop, bcrop);
     }
     {	string s(fname);
 	size_t p = s.find_last_of ('.');
@@ -273,11 +278,18 @@ ImageRGBL *load_image (const char * fname) {
 	 << " " << (int)surface->format->BytesPerPixel << " bytes/px"
 	 << endl;
 
-    ImageRGBL *image = new ImageRGBL(*surface);
+    ImageRGBL *image = new ImageRGBL(*surface, lcrop, rcrop, tcrop, bcrop);
 
     SDL_FreeSurface (surface);
 
     return image;
+}
+
+double radian_to_nicedegrees (double a) {
+    double r = (((int)((1800.0*a  )/M_PI)) % 3600)/10.0;
+    if (r > 180)
+	r -= 360;
+    return r;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -300,7 +312,7 @@ int wzoom = -1;
 int hzoom = -1;
 
 int try_add_pic (const char * fname) {
-    ImageRGBL *image = load_image (fname);
+    ImageRGBL *image = load_image (fname, lcrop, rcrop, tcrop, bcrop);
 
     int maxdt = 20;
     int width = 150;
@@ -341,15 +353,25 @@ int try_add_pic (const char * fname) {
 	    diff = starmap->find_match (ref_starmap, 0.0, dx, dy, da0, da0_b);
 
 	    cout << " try_add_pic : dv vector-choosed(0) = d[" << dx << "," << dy
-		 << "] + rot[ " << ((int)((1800.0*da0  )/M_PI))/10.0
-		 << " ~ " <<       ((int)((1800.0*da0_b)/M_PI))/10.0 << " ] " << endl;
+		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
+		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
 
 	    firstda0 = da0_b;
 	    diff = starmap->find_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
 
 	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
-		 << "] + rot[ " << ((int)((1800.0*da0  )/M_PI))/10.0
-		 << " ~ " <<       ((int)((1800.0*da0_b)/M_PI))/10.0 << " ] " << endl;
+		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
+		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
+bool jdwantsthisthird = true;
+if (jdwantsthisthird) {
+	    firstda0 = da0_b;
+	    diff = starmap->find_tuned_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
+
+	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
+		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
+		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
+	    firstda0 = da0; // JDJDJDJD je teste avec l'angle obtenu par les moyennes ....
+}
 	}
 	chrono_vectordiffing.stop(); if (chrono) cout << chrono_vectordiffing << endl;
 
@@ -493,7 +515,7 @@ int main (int nb, char ** cmde) {
 	    if (ref_image == NULL) {
 		if (nbimage != 0) cerr << "warning, the reference image in use isn't the first in the list" << endl;
 
-		ref_image = load_image (cmde[i]);
+		ref_image = load_image (cmde[i], lcrop, rcrop, tcrop, bcrop);
 
 		if (doublesize) {
 		    if (ref_image != NULL)
@@ -536,6 +558,47 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		    }
 		}
 	    }
+	} else if (strncmp ("-crop=", cmde[i], 6) == 0) {
+	    string s (cmde[i]+6);
+	    size_t p = 0, q = 0;
+	    q = s.find(',', p);
+	    if (q == string::npos)
+		lcrop = atoi (s.substr (p).c_str());
+	    else {
+		lcrop = atoi (s.substr (p,q-p).c_str());
+		p = q + 1;	
+	    }
+
+	    if (q != string::npos) {
+		q = s.find(',', p);
+		if (q == string::npos)
+		    rcrop = atoi (s.substr (p).c_str());
+		else {
+		    rcrop = atoi (s.substr (p,q-p).c_str());
+		    p = q + 1;	
+		}
+	    }
+
+	    if (q != string::npos) {
+		q = s.find(',', p);
+		if (q == string::npos)
+		    tcrop = atoi (s.substr (p).c_str());
+		else {
+		    tcrop = atoi (s.substr (p,q-p).c_str());
+		    p = q + 1;	
+		}
+	    }
+
+	    if (q != string::npos) {
+		q = s.find(',', p);
+		if (q == string::npos)
+		    bcrop = atoi (s.substr (p).c_str());
+		else {
+		    bcrop = atoi (s.substr (p,q-p).c_str());
+		    p = q + 1;	
+		}
+	    }
+	    cerr << "crop = [" << lcrop << "," << rcrop << "," << tcrop << "," << bcrop << "]" << endl;
 	} else if (strncmp ("-debug=", cmde[i], 7) == 0) {
 	    debug = atoi (cmde[i]+7);
 	    ImageRGBL::setdebug (debug);
@@ -547,7 +610,7 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 	} else if (strncmp ("-doublescale", cmde[i], 12) == 0) {
 	    doublesize = true;
 	} else if (strncmp ("-noise=", cmde[i], 7) == 0) {
-	    ImageRGBL *im = load_image (cmde[i] + 7);
+	    ImageRGBL *im = load_image (cmde[i] + 7, lcrop, rcrop, tcrop, bcrop);
 	    if (im == NULL) {
 		cerr << "could not load noise-reference image : '" << (cmde[i] + 7) << "'" << endl;
 	    } else {
@@ -562,10 +625,26 @@ if (doublesize) {
 		lnoise_ref.push_back (im);
 	    }
 	} else if (strncmp ("-falloff=", cmde[i], 9) == 0) {
-	    falloff_ref = load_image (cmde[i] + 9);
-	    if (falloff_ref == NULL)
-		cerr << "could not load fall-off-reference image : '" << (cmde[i] + 7) << "'" << endl;
+	    ImageRGBL *tempfall = load_image (cmde[i] + 9, lcrop, rcrop, tcrop, bcrop);
+	    if (tempfall == NULL)
+		cerr << "could not load temp-fall-off image : '" << (cmde[i] + 7) << "'" << endl;
 	    else {
+		if (falloff_ref == NULL) {
+		    falloff_ref = new ImageRGBL (tempfall->w, tempfall->h);
+		    if (falloff_ref == NULL) {
+			cerr << "could not allocate falloff_ref : bailing out ..." << endl;
+			return -1;
+		    }
+		    falloff_ref->zero();
+		    if (doublesize) {
+			if (falloff_ref != NULL)
+			{	ImageRGBL *imageb = falloff_ref->doublescale ();
+			    delete (falloff_ref);
+			    falloff_ref = imageb;
+		    // ref_image->save_png ("ref.png");
+			}
+		    }
+		}
 		if (sum_image == NULL) {
 		    sum_image = new ImageRGBL (falloff_ref->w, falloff_ref->h);
 		    if (sum_image == NULL) {
@@ -576,14 +655,17 @@ if (doublesize) {
 		    sum_image->turnmaskon(0);
 		}
 		if (doublesize) {
-		    if (falloff_ref != NULL)
-		    {	ImageRGBL *imageb = falloff_ref->doublescale ();
-			delete (falloff_ref);
-			falloff_ref = imageb;
+		    if (tempfall != NULL)
+		    {	ImageRGBL *imageb = tempfall->doublescale ();
+			delete (tempfall);
+			tempfall = imageb;
 		// ref_image->save_png ("ref.png");
 		    }
 		}
+		falloff_ref->add (*tempfall, 0 ,0);
+		falloff_ref->setluminance();
 		falloff_ref->setmax();
+		delete (tempfall);
 	    }
 	} else if (strncmp ("-finetune", cmde[i], 9) == 0) {
 	    finetune = true;
@@ -669,7 +751,7 @@ int oldmain (int nb, char ** cmde) {
 	    if (ref_image == NULL) {
 		if (nbimage != 0)
 		    cerr << "warning, the reference image in use isn't the first in the list" << endl;
-		ref_image = load_image (cmde[i]);
+		ref_image = load_image (cmde[i], lcrop, rcrop, tcrop, bcrop);
 if (doublesize) {
     if (ref_image != NULL)
     {	ImageRGBL *imageb = ref_image->doublescale ();
@@ -721,7 +803,7 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 	} else if (strncmp ("-doublescale", cmde[i], 12) == 0) {
 	    doublesize = true;
 	} else if (strncmp ("-noise=", cmde[i], 7) == 0) {
-	    ImageRGBL *im = load_image (cmde[i] + 7);
+	    ImageRGBL *im = load_image (cmde[i] + 7, lcrop, rcrop, tcrop, bcrop);
 	    if (im == NULL) {
 		cerr << "could not load noise-reference image : '" << (cmde[i] + 7) << "'" << endl;
 	    } else {
@@ -736,7 +818,7 @@ if (doublesize) {
 		lnoise_ref.push_back (im);
 	    }
 	} else if (strncmp ("-falloff=", cmde[i], 9) == 0) {
-	    falloff_ref = load_image (cmde[i] + 9);
+	    falloff_ref = load_image (cmde[i] + 9, lcrop, rcrop, tcrop, bcrop);
 	    if (falloff_ref == NULL)
 		cerr << "could not load fall-off-reference image : '" << (cmde[i] + 7) << "'" << endl;
 	    else {

@@ -48,6 +48,10 @@ namespace exposit {
 
 	friend int dxxdyy (VStar const &a, VStar const &b);
 
+	int distance_eucl (int rx, int ry);
+
+	int distance_eucl (VStar const &s);
+
 	int distance_2angles (VStar const &s);
 
 	int distance_3d (VStar const &s);

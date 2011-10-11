@@ -205,8 +205,8 @@ bool ImageRGBL::chrono = false;
 	allocateall ();
     }
 
-    ImageRGBL::ImageRGBL (SDL_Surface & surface)
-	: w(surface.w), h(surface.h), maxlev(256),
+    ImageRGBL::ImageRGBL (SDL_Surface & surface, int lcrop, int rcrop, int tcrop, int bcrop)
+	: w(surface.w-lcrop-rcrop), h(surface.h-tcrop-bcrop), maxlev(256),
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
@@ -217,7 +217,7 @@ bool ImageRGBL::chrono = false;
 	if (isallocated) {
 	    int x, y;
 	    for (x=0 ; x<w ; x++) for (y=0 ; y<h ; y++)
-		getpixel (surface, x, y, r[x][y], g[x][y], b[x][y]);
+		getpixel (surface, x+lcrop, y+tcrop, r[x][y], g[x][y], b[x][y]);
 	}
 	setluminance();
     }
@@ -606,6 +606,115 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	return image;
     }
 
+    void ImageRGBL::rendermax (SDL_Surface &surface, int xoff, int yoff, int width, int height) {
+	int x,y;
+	double xr = (double)w / width,
+	       yr = (double)h / height;
+
+//	    map<int,int> hr, hg, hb, hl;
+	map<int,int>::iterator mi, mi_max;
+
+	int mini = r[2][2] + g[2][2] + b[2][2], maxi = mini;
+	{   int i=0,j=0,s;
+	    for (j=0 ; j<h ; j++) for (i=0 ; i<w ; i++) {
+		s = r[i][j] + g[i][j] + b[i][j];
+		if (mini > s) mini = s;
+		if (maxi < s) maxi = s;
+	    }
+	}
+
+	SDL_LockSurface(&surface);
+	if (maxi == mini) {
+	    for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
+		putpixel (surface, x+xoff, y+yoff, 0,0,0);
+	    }
+	} else {
+	    for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
+		int i, j, n = 0;
+		int tr = 0, tg = 0, tb = 0;
+		int sx = (int)(x * xr),
+		    sy = (int)(y * yr);
+		for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
+		    tr += r[sx+i][sy+j];
+		    tg += g[sx+i][sy+j];
+		    tb += b[sx+i][sy+j];
+		    n ++;
+		}
+		int s = (255 * (((tr + tg + tb)/n) - mini)) / (maxi-mini);
+		if (s < 0) s = 0;
+		s = min (255, s);
+		putpixel (surface, x+xoff, y+yoff, s,s,s);
+	    }
+	}
+	putpixel (surface, 10,10, 255,255,255);
+	putpixel (surface, 20,20, 255,0,255);
+	putpixel (surface, 10,20, 255,0,0);
+	SDL_UnlockSurface(&surface);
+	SDL_UpdateRect(&surface, 0, 0, 0, 0);
+    }
+
+    void ImageRGBL::renderseuil (SDL_Surface &surface, int xoff, int yoff, int width, int height, int seuil) {
+	int x,y;
+	double xr = (double)w / width,
+	       yr = (double)h / height;
+
+//	    map<int,int> hr, hg, hb, hl;
+	map<int,int>::iterator mi, mi_max;
+
+	SDL_LockSurface(&surface);
+	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
+	    int i, j, n = 0;
+	    int tr = 0, tg = 0, tb = 0;
+	    int sx = (int)(x * xr),
+		sy = (int)(y * yr);
+	    for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
+		tr += r[sx+i][sy+j];
+		tg += g[sx+i][sy+j];
+		tb += b[sx+i][sy+j];
+		n ++;
+	    }
+	    if ( min(255,(int)(tr/n)) + min(255,(int)(tg/n)) + min(255,(int)(tb/n))  >  3 * seuil)
+		putpixel (surface, x+xoff, y+yoff, 255, 255, 255);
+	    else
+		putpixel (surface, x+xoff, y+yoff, 0, 0, 0);
+	    // putpixel (surface, x+xoff, y+yoff, min(255,(int)(tr/n)), min(255,(int)(tg/n)), min(255,(int)(tb/n)));
+	}
+	putpixel (surface, 10,10, 255,255,255);
+	putpixel (surface, 20,20, 255,0,255);
+	putpixel (surface, 10,20, 255,0,0);
+	SDL_UnlockSurface(&surface);
+	SDL_UpdateRect(&surface, 0, 0, 0, 0);
+    }
+
+    void ImageRGBL::rendernodiff (SDL_Surface &surface, int xoff, int yoff, int width, int height) {
+	int x,y;
+	double xr = (double)w / width,
+	       yr = (double)h / height;
+
+//	    map<int,int> hr, hg, hb, hl;
+	map<int,int>::iterator mi, mi_max;
+
+	SDL_LockSurface(&surface);
+	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
+	    int i, j, n = 0;
+	    int tr = 0, tg = 0, tb = 0;
+	    int sx = (int)(x * xr),
+		sy = (int)(y * yr);
+	    for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
+		tr += r[sx+i][sy+j];
+		tg += g[sx+i][sy+j];
+		tb += b[sx+i][sy+j];
+		n ++;
+	    }
+	    putpixel (surface, x+xoff, y+yoff, min(255,(int)(tr/n)), min(255,(int)(tg/n)), min(255,(int)(tb/n)));
+	}
+	putpixel (surface, 10,10, 255,255,255);
+	putpixel (surface, 20,20, 255,0,255);
+	putpixel (surface, 10,20, 255,0,0);
+	SDL_UnlockSurface(&surface);
+	SDL_UpdateRect(&surface, 0, 0, 0, 0);
+    }
+
     void ImageRGBL::render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs) {
 	int x,y;
 	double xr = (double)w / width,
@@ -909,7 +1018,7 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	hb.erase(hb.begin(), hb.end());
 	hl.erase(hl.begin(), hl.end());
 	if (msk == NULL) {
-cout << "fasthistogramme sans curmsk" << endl;
+if (debug) cout << "fasthistogramme sans curmsk" << endl;
 	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
 //		hr[r[x][y]] ++;
 //		hg[g[x][y]] ++;
@@ -921,7 +1030,7 @@ cout << "fasthistogramme sans curmsk" << endl;
 		hl[l[x][y]&0xFFFFFFF0] ++;
 	    }
 	} else {
-cout << "fasthistogramme avec curmsk = " << curmsk << endl;
+if (debug) cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
 		if (msk[x][y] == curmsk) {
 //		    hr[r[x][y]] ++;
@@ -935,7 +1044,7 @@ cout << "fasthistogramme avec curmsk = " << curmsk << endl;
 		}
 	    }
 	}
-cerr << "hr.size() = " << hr.size() << endl
+if (debug) cerr << "hr.size() = " << hr.size() << endl
      << "hg.size() = " << hg.size() << endl
      << "hb.size() = " << hb.size() << endl
      << "hl.size() = " << hl.size() << endl;
@@ -978,9 +1087,12 @@ cerr << "hr.size() = " << hr.size() << endl
 	    minw = min(w, falloffref.w), 
 	    minh = min(h, falloffref.h);
 	for (x=0 ; x<minw ; x++) for (y=0 ; y<minh ; y++) {
-	    r[x][y] = (int)((falloffref.maxr/(double)falloffref.r[x][y]) * r[x][y]);
-	    g[x][y] = (int)((falloffref.maxg/(double)falloffref.g[x][y]) * g[x][y]);
-	    b[x][y] = (int)((falloffref.maxb/(double)falloffref.b[x][y]) * b[x][y]);
+//	    r[x][y] = (int)((falloffref.maxr/(double)falloffref.r[x][y]) * r[x][y]);
+//	    g[x][y] = (int)((falloffref.maxg/(double)falloffref.g[x][y]) * g[x][y]);
+//	    b[x][y] = (int)((falloffref.maxb/(double)falloffref.b[x][y]) * b[x][y]);
+	    r[x][y] = (int)((falloffref.maxl/(double)falloffref.l[x][y]) * r[x][y]);
+	    g[x][y] = (int)((falloffref.maxl/(double)falloffref.l[x][y]) * g[x][y]);
+	    b[x][y] = (int)((falloffref.maxl/(double)falloffref.l[x][y]) * b[x][y]);
 	    l[x][y] = r[x][y] + g[x][y] + b[x][y];
 	}
 	histog_valid = false;
