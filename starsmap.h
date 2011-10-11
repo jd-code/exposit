@@ -35,8 +35,8 @@ namespace exposit {
 
     class StarsMap : public multimap <int,VStar> {
 	public:
-	    int w, h;
-	    multimap <int,VStar*> xind;
+	    int w, h;			// the size of the source image
+	    multimap <int,VStar*> xind;	// x-coord sorted index of ourselves
 	    StarsMap (void) {}
 
 	    StarsMap (int w, int h) : multimap <int,VStar>(), w(w), h(h) {}
@@ -46,6 +46,7 @@ namespace exposit {
 	    void full_expunge (void);
 
 	    int find_match (StarsMap const &ref_starmap, double rothint, int &dx, int &dy, double &da0, double &da0_b);
+	    int find_tuned_match (StarsMap const &ref_starmap, double rothint, int &dx, int &dy, double &da0, double &da0_b);
 
 static int debug;
 

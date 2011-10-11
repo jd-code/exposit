@@ -44,6 +44,10 @@
 
 namespace exposit {
 
+    // JDJDJDJD ugly
+    extern int
+	lcrop, rcrop, tcrop, bcrop;
+
     map <string, int> fmatch;
 	    
 bool watchdir (string &dirname, string &regexp, regex_t *cregexp) {
@@ -142,7 +146,7 @@ extern bool doublesize;
 
 extern StarsMap empty, &ref_starmap;
 
-ImageRGBL *load_image (const char * fname);
+ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop);
 int try_add_pic (const char * fname);
 
 int simplenanosleep (int ms);
@@ -655,7 +659,7 @@ static int nbprint = 0;
 	    for (mi=fmatch.begin() ; mi!=fmatch.end() ; mi++) {
 		if (mi->second == 0) {
 		    if (ref_image == NULL) {
-			ref_image = load_image (mi->first.c_str());
+			ref_image = load_image (mi->first.c_str(), lcrop, rcrop, tcrop, bcrop);
 			if (ref_image != NULL) {
 			    if (nbimage != 0)
 				cerr << "warning, the reference image in use isn't the first in the list" << endl;

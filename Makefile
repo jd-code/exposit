@@ -4,7 +4,7 @@ COMPFLAGS=-O4
 
 all: exposit
 
-vimtest: exposit
+vimtest: exposit show
 	# ./exposit -noise=noise_10sec1.jpg ../../m101/*07.jpg ../../m101/*.jpg
 
 	#	./exposit -falloff=falloff_180mmf2.8.png ../../m101/*04.jpg ../../m101/cap*.jpg
@@ -31,8 +31,17 @@ vimtest: exposit
 	# ./exposit ../../m101/*07.jpg `ls ../../m101/*.jpg | head -10`
 	# ./exposit ../../m101/*07.jpg ../../m101/*67.jpg
 
+
+	./procm31.sh
+	# ./mytest.sh
+	#./exposit -crop=10,10,20,20
+
+	###########################333
+	# ./show
+
+
 exposit: simplechrono.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o interact.o
-	g++ -Wall ${COMPFLAGS} -o exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image
+	g++ -Wall ${COMPFLAGS} -o exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image -lpng
 
 interact.o: interact.cpp simplechrono.h
 	g++ -Wall ${COMPFLAGS} -c interact.cpp `sdl-config --cflags`
@@ -62,6 +71,16 @@ graphutils.o: graphutils.c graphutils.h
 	gcc -Wall ${COMPFLAGS} -c graphutils.c `sdl-config --cflags`
 
 clean:
-	rm -f graphutils.o jeuchar.o draw.o exposit.o starsmap.o gp_imagergbl.o vstar.o simplechrono.o exposit interact.o
+	rm -f exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o show show.o
 
 distclean: clean
+
+
+####################################################################################
+
+show: show.o draw.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o simplechrono.o draw.o
+	g++ -Wall ${COMPFLAGS} -o show show.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o `sdl-config --cflags --libs` -lSDL_image -lpng
+
+show.o: show.cpp show.h
+	g++ -Wall ${COMPFLAGS} -c `sdl-config --cflags` show.cpp
+
