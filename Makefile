@@ -71,7 +71,7 @@ graphutils.o: graphutils.c graphutils.h
 	gcc -Wall ${COMPFLAGS} -c graphutils.c `sdl-config --cflags`
 
 clean:
-	rm -f exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o show show.o
+	rm -f exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o show show.o types.vim tags 
 
 distclean: clean
 
