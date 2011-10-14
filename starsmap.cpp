@@ -23,6 +23,7 @@
  */
 
 #include <math.h>
+#include <list>
 #include <iostream>
 
 #include "starsmap.h"
@@ -32,6 +33,27 @@ namespace exposit {
 
     inline int abs (int i) {
 	return i<0 ? -i : i;
+    }
+
+    double average (list<double> const &l) {
+	if (l.empty()) return 0.0;
+	list<double>::const_iterator li;
+	double moy = 0.0;
+        for (li=l.begin() ; li!=l.end() ; li++) moy += *li;
+	return moy / l.size();
+    }
+
+    double average_and_stddev (list<double> const &l, double &stddev) {
+	if (l.empty()) return 0.0;
+	list<double>::const_iterator li;
+	double moy = average (l);
+	stddev = 0.0;
+	for (li=l.begin() ; li!=l.end() ; li++) {
+	    double d = *li - moy;
+	    stddev += d * d;
+	}
+	stddev = sqrt (stddev / l.size());	
+	return moy;
     }
 
     void StarsMap::full_update_xind (void) {
@@ -83,9 +105,11 @@ namespace exposit {
 		a2 =  sin(rothint),
 		b2 =  cos(rothint);
 
-	// we try to build a matching list of VStars
-	map<VStar*,VStar*> match;
-	multimap <double,map<VStar*,VStar*>::iterator> refine;
+	// first, we try to build a matching list of VStars
+
+	map<VStar*,VStar*> match;				// the matching list
+	multimap <double,map<VStar*,VStar*>::iterator> refine;	// a distance-indexed list of the above for further refining
+	list<double> ldisteucl;					// for qualifying the above coincidence attempt
 
 	if (xind.empty()) {
 	    cerr << "the x-index of stars is emty ??" << endl
@@ -110,8 +134,8 @@ namespace exposit {
 		match[&li->second] = mj->second, pushed = true;
 
 	    int widthlim = w / 20;
-	    for (lj=mj ; (lj!=ref_starmap.xind.end()) && (lj->second->x-projx < widthlim) ; lj++) {
-		if (abs(lj->second->y - projy) < w/20) {
+	    for (lj=mj ; (lj!=ref_starmap.xind.end()) && (lj->second->x-projx < widthlim) ; lj++) { // we explore on one side
+		if (abs(lj->second->y - projy) < w/20) {    // targets must be close (useful when "distance" is used instead of "distance_eucl")
 		    int d = lj->second->distance_eucl(projx, projy);
 		    if (d < mindis) {
 			mindis = d;
@@ -120,8 +144,8 @@ namespace exposit {
 		}
 	    }
 	    lj=mj;
-	    while (projx - lj->second->x < widthlim) {
-		if (abs(lj->second->y - projy) < w/20) {
+	    while (projx - lj->second->x < widthlim) {						    // we explore the other side
+		if (abs(lj->second->y - projy) < w/20) {    // targets must be close (useful when "distance" is used instead of "distance_eucl")
 		    int d = lj->second->distance_eucl(projx, projy);
 		    if (d < mindis) {
 			mindis = d;
@@ -134,37 +158,53 @@ namespace exposit {
 	    }
 	    if (pushed) {
 		map<VStar*,VStar*>::iterator mi = match.find (&li->second);
-		if (mi != match.end()) {
+		if (mi != match.end()) {	// here we index the matches found by order of closeness
 		    // refine[match[&li->second]->distance_eucl(projx, projy)] = mi;
-		    refine.insert (pair<double,map<VStar*,VStar*>::iterator> (mi->second->distance_eucl(projx, projy), mi));
+		    double d = mi->second->distance_eucl(projx, projy);
+		    refine.insert (pair<double,map<VStar*,VStar*>::iterator> (d, mi));
+		    ldisteucl.push_back (d);
 		} else {
 		    cerr << "StarsMap::find_tuned_match : error : we don't find what we just pushed-in ?" << endl;
 		}
 	    }
 	}
-	// we refine the match-list
+	{   double aver, stddev = 0.0;
+	    aver = average_and_stddev (ldisteucl, stddev);
+	    cerr << "  original dist_eucl_moy = " << aver << " stddev = " << stddev << endl;
+	}
+	// we refine the match-list using the closeness index
 	{
 	    size_t tot = refine.size(), i;
 	    
+	// we're about to drop the 10% worst matches
+#define CLOSENESSPERCENTILE 0.9
 	    multimap <double,map<VStar*,VStar*>::iterator>::iterator ri;
 
-	    for (ri=refine.begin(), i=0 ; (i<tot*0.9) && (ri!=refine.end()) ; ri++,i++) ;
+	    // for statistics ...
+	    list<double> ldtistrefined;
+
+	    for (ri=refine.begin(), i=0 ; (i<tot*CLOSENESSPERCENTILE) && (ri!=refine.end()) ; ri++,i++)
+		ldtistrefined.push_back (ri->first);	// for statistics only
 
 	    for ( ; ri!=refine.end() ; ri++)
 		match.erase (ri->second);
 
 	    refine.erase (refine.begin(), refine.end());
+	    {   double aver, stddev = 0.0;
+		aver = average_and_stddev (ldtistrefined, stddev);
+		cerr << "   refined dist_eucl_moy = " << aver << " stddev = " << stddev << endl;
+	    }
 	}
 
-	
+	// calculating the starmap rotation angle by comparing matching bi-points
 	{   map<VStar*,VStar*>::iterator li, lj;
 	    int n = 0;
 
 	    spond = 0.0;
-	    for (li=match.begin() ; li!=match.end() ; li++) {
+	    for (li=match.begin() ; li!=match.end() ; li++) {		// we go the full matching point list ...
 // cerr << "d = " << li->first->distance_eucl(*li->second) << endl;
-		double d1 = li->first->distance(*li->second);
-		for (lj=li, lj++ ; lj!=match.end() ; lj++) {
+		double d1 = li->first->distance(*li->second);	// the VStar distance is used for ponderation
+		for (lj=li, lj++ ; lj!=match.end() ; lj++) {		// ... toward the second half of the list
 		    int firstdx = li->first->x - lj->first->x,
 			firstdy = li->first->y - lj->first->y;
 		    int seconddx = li->second->x - lj->second->x,
@@ -172,14 +212,16 @@ namespace exposit {
 		    double norm1 = sqrt (firstdx*firstdx+firstdy*firstdy),
 			   norm2 = sqrt (seconddx*seconddx+seconddy*seconddy);
 		   
-		    if ((norm1 < w*0.75) || (norm2 < w*0.75))
+// only vectors as long as half (or more) the width of the pic will be used for rotation matching
+// #define VECTORMATCHMINIMUMLENGTH 0.75
+#define VECTORMATCHMINIMUMLENGTH 0.5
+		    if ((norm1 < w*VECTORMATCHMINIMUMLENGTH) || (norm2 < w*VECTORMATCHMINIMUMLENGTH))
 			continue; 
-		    double d2 = lj->first->distance(*lj->second);
+		    double d2 = lj->first->distance(*lj->second);   // the VStar distance is used for ponderation
 		    d2 *= d1;
 		    if (d2 < 0.0001) d2 = 0.0001;
 		    pond = 1/(d2*d2);
 		    n++;
-		    // scos += (pond * (firstdx*seconddx + firstdy*seconddy))/(pond * sqrt (seconddx*seconddx+seconddy*seconddy));
 		    scos += pond * (firstdx*seconddx + firstdy*seconddy) / (norm2 * norm1);
 		    ssin += pond * (-firstdx*seconddy + firstdy*seconddx) / (norm2 * norm1);
 		    spond += pond;
@@ -188,29 +230,41 @@ namespace exposit {
 
 	    double cosa = scos / spond;
 	    double sina = ssin / spond;
-    cerr << match.size() << "points,  " << n << " bi-points" << endl;
-    cerr << "rotm = [ " << scos << " : " << ssin << " ] / " << spond << endl;
-    cerr << "rotm = [ " << cosa << " : " << sina << " ]    sqsum = " << cosa*cosa + sina*sina << endl;
+// JDJDJDJD those values could be reported to a structure ?
+//    cerr << match.size() << "points,  " << n << " bi-points" << endl;
+//    cerr << "rotm = [ " << scos << " : " << ssin << " ] / " << spond << endl;
+//    cerr << "rotm = [ " << cosa << " : " << sina << " ]    sqsum = " << cosa*cosa + sina*sina << endl;
 	    da0 = acos(cosa);
 	    if (sina<0)
 		da0 = 2*M_PI - da0;
 	    da0_b = da0;
 	}
 
+	a1 =  cos(da0),
+	b1 = -sin(da0),
+	a2 =  sin(da0),
+	b2 =  cos(da0);
+
 	{   map<VStar*,VStar*>::iterator li;
+	    list<double> l_spec_dist;	// used for statistic collection
 	    spond = 0.0;
 	    for (li=match.begin() ; li!=match.end() ; li++) {
-		double d = li->first->distance(*li->second);
+		double d = li->first->distance(*li->second);	// the VStar distance is used for ponderation
+		l_spec_dist.push_back (d);  // statistic collection
 		if (d<0.001) d = 0.001;
 		pond = 1/d*d;
-// cerr << ((li->first->x-w/2)*a1 + (li->first->y-h/2)*a2) +w/2 - li->second->x << " : "
-//      << ((li->first->x-w/2)*b1 + (li->first->y-h/2)*b2) +h/2 - li->second->y  << endl;
 		sdx += pond * ((li->first->x-w/2)*a1 + (li->first->y-h/2)*a2) +w/2 - li->second->x;
 		sdy += pond * ((li->first->x-w/2)*b1 + (li->first->y-h/2)*b2) +h/2 - li->second->y;
 		spond += pond;
 	    }
 	    dx = sdx / spond;
 	    dy = sdy / spond;
+
+	    {   double aver, stddev = 0.0;
+		aver = average_and_stddev (l_spec_dist, stddev);
+		cerr << "  specular dist_eucl_moy = " << aver << " stddev = " << stddev << endl;
+	    }
+	    
 	}
 
 	return 0;

@@ -357,21 +357,28 @@ int try_add_pic (const char * fname) {
 		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
 
 	    firstda0 = da0_b;
-	    diff = starmap->find_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
 
-	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
-		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
-		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
-bool jdwantsthisthird = true;
-if (jdwantsthisthird) {
-	    firstda0 = da0_b;
+//	    diff = starmap->find_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
+//
+//	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
+//		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
+//		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
+//
+//	    firstda0 = da0_b;
+
 	    diff = starmap->find_tuned_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
 
 	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
 		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
 		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
-	    firstda0 = da0; // JDJDJDJD je teste avec l'angle obtenu par les moyennes ....
-}
+	    firstda0 = da0;
+
+	    diff = starmap->find_tuned_match (ref_starmap, da0_b, dx, dy, da0, da0_b);
+
+	    cout << " try_add_pic : dv vector-choosed(" << firstda0 << ") = d[" << dx << "," << dy
+		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
+		 << " ~ " << setw(6)                                   << radian_to_nicedegrees (da0_b) << endl;
+	    firstda0 = da0;
 	}
 	chrono_vectordiffing.stop(); if (chrono) cout << chrono_vectordiffing << endl;
 
