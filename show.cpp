@@ -23,6 +23,8 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
+#include <ext/stdio_filebuf.h>	// __gnu_cxx::stdio_filebuf
+
 #include <asm/types.h>          /* for videodev2.h */
 
 #include <linux/videodev2.h>
@@ -68,6 +70,7 @@ bool V4L2Cap::enumerate_menu (struct v4l2_queryctrl &queryctrl, struct v4l2_quer
 	    return false;
 	}
     }
+    return true;
 }
 
 void V4L2Cap::list_controls (void)
@@ -703,6 +706,30 @@ class V4L2MonProcess : public V4L2Cap {
 void V4L2MonProcess::process_image (void *p)
 {
 
+static bool first_time = true;
+static	    __gnu_cxx::stdio_filebuf<char> *pipeco = NULL;
+static ostream* pgphotostream = NULL;
+    if (first_time) {
+	first_time = false;
+	//const char* command = "gphoto2 --shell 2> /dev/null 2>&1";
+	const char* command = "gphoto2 --shell";
+	FILE * pgphoto = popen (command, "w");
+	if (pgphoto == NULL) {
+	    int e = errno;
+	    cerr << "error : " << command << " failed : " << strerror (e) << endl;
+	} else {
+	    pipeco = new __gnu_cxx::stdio_filebuf<char>(pgphoto, ios_base::out);
+	    if (pipeco == NULL) {
+		cerr << "could not create pipeco ..." << endl;
+	    } else {
+		pgphotostream = new ostream (pipeco);
+		if (pgphotostream == NULL)
+		    cerr << "could not create pgphotostream ..." << endl;
+	    }
+	}
+    }
+
+
 static int i = 0;
 	i++;
 
@@ -721,29 +748,62 @@ static int i = 0;
 		fwrite (p, len, 1, fout);
 		fclose (fout);
 	    } else {	// nouveau code, donc ...
-
+static ImageRGBL *prepic = NULL, *curpic = NULL;
 		if (active_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV420) {
 		    int w = active_fmt.fmt.pix.width,
 			h = active_fmt.fmt.pix.height;
 		    int x, y;
 		    unsigned char *q = (unsigned char *) p;
-		    ImageRGBL image (w, h);
+
+		    curpic = new ImageRGBL (w, h);
+		    if (curpic == NULL) {
+			cerr << "could not allocate ImageRGBL)" << w << "," << h << ")" << endl;
+			return;
+		    }
+		    ImageRGBL &image = *curpic;
 		    for (y=0 ; y<h ; y++) for (x=0 ; x<w ; x++) {
 			image.r[x][y] = image.g[x][y] = image.b[x][y] = *q++;
 		    }
-		    image.rendermax (*screen, 0, 0, 640, 480);
-		    image.rendernodiff (*screen, 640, 0, 800-640, 600-480);
 		} else {
 
 		    SDL_RWops *frommem = SDL_RWFromMem(p, len);
 		    SDL_Surface *surface = IMG_LoadTyped_RW (frommem, 1, "JPG");
 		    
-		    ImageRGBL image(*surface);
-		    image.rendermax (*screen, 0, 0, 640, 480);
-		    image.rendernodiff (*screen, 640, 0, 800-640, 600-480);
-
+		    curpic = new ImageRGBL (*surface);
+		    if (curpic == NULL) {
+			cerr << "could not allocate ImageRGBL from surface" << endl;
+			return;
+		    }
 		    SDL_FreeSurface (surface);
 		}
+
+		ImageRGBL &image = *curpic;
+		image.rendermax (*screen, 0, 0, 640, 480);
+		// image.rendernodiff (*screen, 640, 0, 800-640, 600-480);
+		if (prepic != NULL) {
+		    prepic->substract (image);
+		    prepic->rendermax(*screen, 640, 0, 800-640, 600-480);
+
+		    int diff = prepic->averageabsR ();
+
+		    cerr << diff << " ";
+// #define DIFFCEIL 15
+#define DIFFCEIL 10
+		    if (diff > DIFFCEIL) {
+			cerr << endl << "trig" << endl;
+static time_t lastcapt = time(NULL);
+			if ((pgphotostream != NULL) && (time(NULL) - lastcapt > 2)) {
+			    lastcapt = time(NULL);
+			    cerr << "outputing" << endl;
+			    (*pgphotostream) << "capture-image-and-download" << endl;
+			    cerr << endl << "done" << endl;
+			}
+		    }
+		}
+
+		if (prepic != NULL) delete (prepic);
+		prepic = curpic;
+		curpic = NULL;
 	    }
 	}
 
@@ -760,7 +820,7 @@ static void mainloop (V4L2Cap &theobject)
 static int toterror = 0;
 
 //        count = 100;
-        count = 10000;
+        count = 10000000;
 
 	int fd = theobject.get_fd();
 	if (fd < 0 ) {

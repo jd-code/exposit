@@ -32,12 +32,12 @@ vimtest: exposit show
 	# ./exposit ../../m101/*07.jpg ../../m101/*67.jpg
 
 
-	./procm31.sh
+	# ./procm31.sh
 	# ./mytest.sh
 	#./exposit -crop=10,10,20,20
 
 	###########################333
-	# ./show
+	./show
 
 
 exposit: simplechrono.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o interact.o

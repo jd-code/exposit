@@ -1143,6 +1143,19 @@ if (debug) cerr << "hr.size() = " << hr.size() << endl
 	histog_valid = false;
     }
 
+    int ImageRGBL::averageabsR (void) {
+	int totl = 0, tot = 0;
+	int x, y;
+	for (x=0 ; x<w ; x++) {
+	    totl = 0;
+	    for (y=0 ; y<h ; y++) {
+		int v = r[x][y];
+		totl += (v>0) ? v : -v;
+	    }
+	    tot += totl / h;
+	}
+	return tot / w;
+    }
 
 // ################# JDJDJDJDJD verifier que les deux diffs sont toujourts identiques !!!!
     long long ImageRGBL::diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy) {
