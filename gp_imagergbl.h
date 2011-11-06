@@ -123,6 +123,8 @@ static bool chrono;
 
     void maxminize (void);
 
+    int averageabsR (void);
+
     long long diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy);
 
     long long diff (ImageRGBL &ref, int xr, int yr, int width, int height, int dx, int dy, int cut);
