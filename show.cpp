@@ -790,9 +790,10 @@ static ImageRGBL *prepic = NULL, *curpic = NULL;
 // #define DIFFCEIL 15
 #define DIFFCEIL 10
 		    if (diff > DIFFCEIL) {
-			cerr << endl << "trig" << endl;
 static time_t lastcapt = time(NULL);
-			if ((pgphotostream != NULL) && (time(NULL) - lastcapt > 2)) {
+			time_t difft = time(NULL) - lastcapt;
+			if ((pgphotostream != NULL) && (difft > 2)) {
+			    cerr << endl << "trig : " << diff << " " << difft << endl;
 			    lastcapt = time(NULL);
 			    cerr << "outputing" << endl;
 			    (*pgphotostream) << "capture-image-and-download" << endl;
