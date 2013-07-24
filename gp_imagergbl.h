@@ -58,7 +58,7 @@ class ImageRGBL {
 
     public:
 	int w, h;
-	int maxlev;
+	int maxlev;	    // 256 for png/jpg, 65536 for ppm (imported raw images)
 	int **r, **g, **b, **l, **msk;
 	bool isallocated;
 	bool histog_valid;
@@ -79,6 +79,11 @@ static bool chrono;
 
 	ImageRGBL (SDL_Surface & surface, int lcrop = 0, int rcrop = 0, int tcrop = 0, int bcrop = 0);
 
+	ImageRGBL (const char * fname); // loading some xpo file
+
+	bool save_xpo (const char * fnane);
+
+
 	bool turnmaskon (int defvalue = 1);
 	void setluminance (void);
 	void setmax (void);
@@ -86,24 +91,27 @@ static bool chrono;
 	ImageRGBL *rotate (double ang);
 	ImageRGBL *doublescale (void);
 
+	ImageRGBL *gauss (double ray, int topceil);
+	ImageRGBL *silly (ImageRGBL &gauss, double strength, double resilient);
+
     void render_onehist (int base, int noise, int gain, map <int,int> &hs, int Max, int vmax,
 		SDL_Surface &surface, int xoff, int yoff, int width, int height,
 		Uint32 cline, Uint32 color);
 
 	void renderhist (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int gain);
 
-	void renderzoom (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs, int xs, int ys, int ws, int hs);
+	void renderzoom (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs, double gamma, int xs, int ys, int ws, int hs);
 
 	ImageRGBL *subsample (int sub);
 
 	void rendermax (SDL_Surface &surface, int xoff, int yoff, int width, int height);
 	void renderseuil (SDL_Surface &surface, int xoff, int yoff, int width, int height, int seuil);
 	void rendernodiff (SDL_Surface &surface, int xoff, int yoff, int width, int height);
-	void render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs);
+	void render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs, double gamma);
 
 	bool save_png (const char * fname);
     
-	bool savecorrected (const char * fname, int base, int nblevs);
+	bool savecorrected (const char * fname, int base, int nblevs, double gamma);
 
 	void fasthistogramme (int step, map<int,int> &hr, map<int,int> &hg, map<int,int> &hb, map<int,int> &hl);
 
@@ -112,6 +120,8 @@ static bool chrono;
     void histogramme (void);
 
     void substract (ImageRGBL & image);
+
+    void remove_refnoise (ImageRGBL & refnoise, int n);
 
     void falloff_correct (ImageRGBL & falloffref);
 

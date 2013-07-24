@@ -22,6 +22,9 @@
  *
  */
 
+#define MAINW	1280
+// #define MAINW	1024
+
 #include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -34,7 +37,7 @@
 #include <math.h>
 
 #include <SDL.h>
-#include <SDL/SDL_image.h>
+#include <SDL_image.h>
 
 #include <iostream>
 #include <fstream>
@@ -298,9 +301,9 @@ double radian_to_nicedegrees (double a) {
     StarsMap empty, &ref_starmap = empty;
     ImageRGBL *sum_image = NULL;
 
-    list <ImageRGBL *> lnoise_ref;
-
     ImageRGBL *falloff_ref = NULL;
+    ImageRGBL *noise_ref = NULL;
+    int nbrefnoise = 0;
 
     string dirname,		// the dir to be polled for files
 	   regexp;		// the regexp matching files
@@ -331,7 +334,7 @@ int try_add_pic (const char * fname) {
     if (image != NULL) {
 
 	static Chrono chrono_rendering("rendering image"); chrono_rendering.start();
-	image->render (*screen, screen->w/2, screen->h/2, screen->w/2, screen->h/2, 0, image->maxlev);
+	image->render (*screen, screen->w/2, screen->h/2, screen->w/2, screen->h/2, 0, image->maxlev, 1.0);
 	chrono_rendering.stop(); if (chrono) cout << chrono_rendering << endl;
 
 	StarsMap *starmap = image->graphe_stars();
@@ -393,8 +396,10 @@ int try_add_pic (const char * fname) {
 	if (finetune) {
 	    static Chrono chrono_fine_tuning("fine-tuning"); chrono_fine_tuning.start();
 	    double ang;
-	    double  delta = 0.05 * M_PI/180.0,
+	    double  delta = 0.2 * M_PI/180.0,
 		    step = 0.01 * M_PI/180.0;
+//	    double  delta = 0.05 * M_PI/180.0,
+//		    step = 0.01 * M_PI/180.0;
 	    int wdx,wdy;
 
 	    int gdx = dx, gdy = dy; double gda0 = firstda0;
@@ -432,11 +437,10 @@ cout << " try_add_pic : dv fine-tuned = d[" << dx << "," << dy
 	}
 
 
-	if (!lnoise_ref.empty()) {
-	    static Chrono chrono_derefnoising("substracting reference noise"); chrono_derefnoising.start();
-
-	    image->substract(**(lnoise_ref.begin()));
-	    chrono_derefnoising.stop(); if (chrono) cout << chrono_derefnoising << endl;
+	if (noise_ref != NULL) {
+	    static Chrono chrono_dimmingnoise("dimming noise"); chrono_dimmingnoise.start();
+	    image->remove_refnoise (*noise_ref, nbrefnoise);
+	    chrono_dimmingnoise.stop(); if (chrono) cout << chrono_dimmingnoise << endl;
 	}
 
 	if (falloff_ref != NULL) {
@@ -487,7 +491,7 @@ void * thread_interact (void *) {
     if (debug) cerr << "entree dans thread_interact" << endl;
 
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_WM_SetCaption("exposit", "exposit");
+//    SDL_WM_SetCaption("exposit", "exposit");
     // screen = SDL_SetVideoMode(1024, 768, 0, 0);
 
     while (ref_image == NULL) {
@@ -496,7 +500,7 @@ void * thread_interact (void *) {
 
     if (ref_image != NULL) {
 	if (screen == NULL)
-	    screen = SDL_SetVideoMode(1280, (ref_image->h*1280)/ref_image->w, 0, 0);
+	    screen = SDL_SetVideoMode(MAINW, (ref_image->h*MAINW)/ref_image->w, 0, 0);
     }
 
     if (debug) cerr << "sortie de thread_interact imminente" << endl;
@@ -505,6 +509,9 @@ void * thread_interact (void *) {
 }
 
 int main (int nb, char ** cmde) {
+
+
+cerr << "sizeof(int) = " << sizeof(int) << endl << endl;
 
     pthread_t pth_interact;
 
@@ -565,6 +572,29 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		    }
 		}
 	    }
+	} else if (strncmp ("-readxpo=", cmde[i], 9) == 0) {
+cerr << "loading " << cmde[i]+9 << " ..." << endl;
+	    sum_image = new ImageRGBL (cmde[i]+9);
+	    if ((sum_image == NULL) || (!sum_image->isallocated)) {
+		cerr << "error at allocation of ImageRGBL ?" << endl;
+	    } else {
+		if (screen == NULL) {
+		    screen = SDL_SetVideoMode(MAINW, (sum_image->h*MAINW)/sum_image->w, 0, 0);
+		}
+	    }
+
+// JDJDJDJD  this is about trying to make some HDR ?????
+if (0)
+{   ImageRGBL *gauss = sum_image->gauss (2, 257 * sum_image->curmsk);
+//    sum_image = gauss;
+    ImageRGBL *silly = sum_image->silly (*gauss, 30.0, 0.0);
+    sum_image = silly;
+    sum_image->setluminance();
+}
+		    
+cerr << "...done." << endl;
+nbimage = 1;
+	    break;
 	} else if (strncmp ("-crop=", cmde[i], 6) == 0) {
 	    string s (cmde[i]+6);
 	    size_t p = 0, q = 0;
@@ -621,15 +651,42 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 	    if (im == NULL) {
 		cerr << "could not load noise-reference image : '" << (cmde[i] + 7) << "'" << endl;
 	    } else {
-if (doublesize) {
-    if (im != NULL)
-    {	ImageRGBL *imageb = im->doublescale ();
-	delete (im);
-	im = imageb;
-// ref_image->save_png ("ref.png");
-    }
-}
-		lnoise_ref.push_back (im);
+		if (noise_ref == NULL) {
+		    noise_ref = new ImageRGBL (im->w, im->h);
+		    if (noise_ref == NULL) {
+			cerr << "could not allocate noise_ref image : bailing out ..." << endl;
+			return -1;
+		    }
+		    noise_ref->zero();
+		    if (doublesize) {
+			if (noise_ref != NULL) {
+			    ImageRGBL *imageb = noise_ref->doublescale ();
+			    delete (noise_ref);
+			    noise_ref = imageb;
+			}
+		    }
+		}
+		if (sum_image == NULL) {
+		    sum_image = new ImageRGBL (noise_ref->w, noise_ref->h);
+		    if (sum_image == NULL) {
+			cerr << "could not allocate sum_image : bailing out ..." << endl;
+			return -1;
+		    }
+		    sum_image->zero();
+		    sum_image->turnmaskon(0);
+		}
+		if (doublesize) {
+		    if (im != NULL) {
+			ImageRGBL *imageb = im->doublescale ();
+			delete (im);
+			im = imageb;
+		    }
+		}
+		noise_ref->add (*im, 0, 0);
+		noise_ref->setluminance();
+		noise_ref->setmax();
+		nbrefnoise ++;
+		delete (im);
 	    }
 	} else if (strncmp ("-falloff=", cmde[i], 9) == 0) {
 	    ImageRGBL *tempfall = load_image (cmde[i] + 9, lcrop, rcrop, tcrop, bcrop);
@@ -672,6 +729,7 @@ if (doublesize) {
 		falloff_ref->add (*tempfall, 0 ,0);
 		falloff_ref->setluminance();
 		falloff_ref->setmax();
+cerr << "falloff maxl=" << falloff_ref->maxl << " minl=" << falloff_ref->minl << endl;
 		delete (tempfall);
 	    }
 	} else if (strncmp ("-finetune", cmde[i], 9) == 0) {
@@ -734,13 +792,6 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 	sum_image->save_png ("test.png");
     }
 
-    {	list <ImageRGBL *>::iterator li;
-	for (li=lnoise_ref.begin() ; li!=lnoise_ref.end() ; li++) {
-	    delete (*li);
-	}
-	lnoise_ref.erase (lnoise_ref.begin(), lnoise_ref.end());
-    }
-
     SDL_Quit();
     return 0;
 }
@@ -770,7 +821,7 @@ if (doublesize) {
 
 		if (ref_image != NULL) {
 		    if (screen == NULL) {
-			screen = SDL_SetVideoMode(1280, (ref_image->h*1280)/ref_image->w, 0, 0);
+			screen = SDL_SetVideoMode(MAINW, (ref_image->h*MAINW)/ref_image->w, 0, 0);
 		    }
 		    
 		    StarsMap * mmap = ref_image->graphe_stars();
@@ -822,7 +873,6 @@ if (doublesize) {
 // ref_image->save_png ("ref.png");
     }
 }
-		lnoise_ref.push_back (im);
 	    }
 	} else if (strncmp ("-falloff=", cmde[i], 9) == 0) {
 	    falloff_ref = load_image (cmde[i] + 9, lcrop, rcrop, tcrop, bcrop);
@@ -830,7 +880,7 @@ if (doublesize) {
 		cerr << "could not load fall-off-reference image : '" << (cmde[i] + 7) << "'" << endl;
 	    else {
 		if (screen == NULL) {
-		    screen = SDL_SetVideoMode(1280, (falloff_ref->h*1280)/falloff_ref->w, 0, 0);
+		    screen = SDL_SetVideoMode(MAINW, (falloff_ref->h*MAINW)/falloff_ref->w, 0, 0);
 		    if (sum_image == NULL) {
 			sum_image = new ImageRGBL (falloff_ref->w, falloff_ref->h);
 			if (sum_image == NULL) {
@@ -911,12 +961,6 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 	sum_image->save_png ("test.png");
     }
 
-    {	list <ImageRGBL *>::iterator li;
-	for (li=lnoise_ref.begin() ; li!=lnoise_ref.end() ; li++) {
-	    delete (*li);
-	}
-	lnoise_ref.erase (lnoise_ref.begin(), lnoise_ref.end());
-    }
 
     SDL_Quit();
     return 0;

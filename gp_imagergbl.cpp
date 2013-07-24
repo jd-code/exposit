@@ -23,6 +23,8 @@
  */
 
 #include <math.h>
+#include <string.h>
+#include <errno.h>
 
 #define PNG_DEBUG 3
 #include <png.h>
@@ -31,6 +33,8 @@
 #include <sstream>
 #include <fstream>
 
+#include "chunkio.h"
+
 #include "draw.h"
 #include "graphutils.h"
 
@@ -38,6 +42,8 @@
 #include "gp_imagergbl.h"
 
 namespace exposit {
+
+using namespace chunkio;
 
 int ImageRGBL::debug = 0;
 bool ImageRGBL::chrono = false;
@@ -222,6 +228,253 @@ bool ImageRGBL::chrono = false;
 	setluminance();
     }
 
+#define TAGADA
+#ifdef TAGADA
+    ImageRGBL::ImageRGBL (const char * fname) :
+	  w(0), h(0), maxlev(0),
+	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
+	  isallocated(false),
+	  histog_valid(false),
+	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
+	  curmsk (0),  Max(0)
+    {
+	ifchunk in(fname);
+	if (!in) {
+	    int e = errno;
+	    cerr << "ImageRGBL::save_xpo : could not open " << fname << " : " << strerror(e) << endl;
+	    return; // JDJDJDJD is there a "good-for-use" mark to be set somewhere ?
+	}
+	int mark;
+	if (!in.readLONG (mark)) {
+	    int e = errno; cerr << "ImageRGBL::save_xpo : error at reading tagmark in " << fname << " : " << strerror(e) << endl; return;
+	}
+	if (mark != 0x4f505889) {
+	    cerr << "ImageRGBL::read_xpo " << fname << " unrecognized tagmark : " << strchunk (mark) << endl;
+	    return;
+	}
+	int chunk;
+	int y = 0;
+	int ymsk = 0;
+	while (in && ((chunk = in.getnextchunk ()) != -1)) {
+	    switch (chunk) {
+		case 0x5f524448:    // "HDR_"
+		    in.readLONG (w);
+		    in.readLONG (h);
+		    in.readLONG (maxlev);
+		    in.readLONG (curmsk);
+		    if (!in) {
+			int e = errno; cerr << "ImageRGBL::read_xpo : error at reading HDR_ chunk " << fname << " : " << strerror(e) << endl; return;
+			return;
+		    }
+		    allocateall ();
+		    break;
+
+		case 0x385f494c:    //LI_8
+		    if (!isallocated) {
+			cerr << "did not reach HDR_ while reading " << fname << " ?" << endl;
+			break;
+		    }
+		    if (y >= h) {
+			cerr << "extraneous line LI_8 in " << fname << endl;
+			break;
+		    }
+		    for (int x=0; x<w ; x++) {
+			in.readBYTE (r[x][y]);
+			in.readBYTE (g[x][y]);
+			in.readBYTE (b[x][y]);
+		    }
+		    y++;
+		    break;
+		case 0x3631494c:    //LI16
+		    if (!isallocated) {
+			cerr << "did not reach HDR_ while reading " << fname << " ?" << endl;
+			break;
+		    }
+		    if (y >= h) {
+			cerr << "extraneous line LI16 in " << fname << endl;
+			break;
+		    }
+		    for (int x=0; x<w ; x++) {
+			in.readWORD (r[x][y]);
+			in.readWORD (g[x][y]);
+			in.readWORD (b[x][y]);
+		    }
+		    y++;
+		    break;
+		case 0x3233494c:    //LI32
+		    if (!isallocated) {
+			cerr << "did not reach HDR_ while reading " << fname << " ?" << endl;
+			break;
+		    }
+		    if (y >= h) {
+			cerr << "extraneous line LI32 in " << fname << endl;
+			break;
+		    }
+		    for (int x=0; x<w ; x++) {
+			in.readLONG (r[x][y]);
+			in.readLONG (g[x][y]);
+			in.readLONG (b[x][y]);
+		    }
+		    y++;
+		    break;
+
+		case 0x385f4b4d:    // MK_8
+		    if (!isallocated) {
+			cerr << "did not reach HDR_ while reading got chunk MK_8 " << fname << " ?" << endl;
+			break;
+		    }
+		    if (ymsk >= h) {
+			cerr << "extraneous line MK_8 in " << fname << endl;
+			break;
+		    }
+		    if (msk == NULL) {
+			if (ymsk == 0) {
+			    if (!allocate_mask()) {
+				msk = NULL;
+				break;
+			    }
+			} else {
+			    cerr << "at reading MK_8 chunk troubled by msk allocation for file " << fname << endl;
+			    break;
+			}
+		    }
+		    for (int x=0; x<w ; x++) {
+			in.readBYTE (msk[x][ymsk]);
+		    }
+		    ymsk ++;
+		    break;
+		case 0x36314b4d:    // MK16
+		    if (!isallocated) {
+			cerr << "did not reach HDR_ while reading got chunk MK16 " << fname << " ?" << endl;
+			break;
+		    }
+		    if (ymsk >= h) {
+			cerr << "extraneous line MK16 in " << fname << endl;
+			break;
+		    }
+		    if (msk == NULL) {
+			if (ymsk == 0) {
+			    if (!allocate_mask()) {
+				msk = NULL;
+				break;
+			    }
+			} else {
+			    cerr << "at reading MK_8 chunk troubled by msk allocation for file " << fname << endl;
+			    break;
+			}
+		    }
+		    for (int x=0; x<w ; x++) {
+			in.readWORD (msk[x][ymsk]);
+		    }
+		    ymsk ++;
+		    break;
+
+
+
+		case 0xFFFFFFFF:    // -1 error
+		    { int e = errno; cerr << "ImageRGBL::read_xpo : error reading next chunk " << fname << " : " << strerror(e) << endl; return;
+		    }
+		    break;
+
+		default:
+		    cerr << "ImageRGBL::read_xpo " << fname << " unkown chunk : " << strchunk (chunk) << endl;
+		    break;
+	    }
+	}
+	if (isallocated)
+	    setluminance();
+    }
+
+    bool ImageRGBL::save_xpo (const char * fname) {
+	ofchunk out(fname);
+	if (!out) {
+	    int e = errno;
+	    cerr << "ImageRGBL::save_xpo : could not open " << fname << " : " << strerror(e) << endl;
+	    return false;
+	}
+	if (!out.writeBYTES ("\211XPO", 4)) {
+	    int e = errno; cerr << "ImageRGBL::save_xpo : error at writing tagmark in " << fname << " : " << strerror(e) << endl; return false;
+	}
+	out.startchunk ("HDR_", 4 + 4*4);
+	    out.writeLONG(w);
+	    out.writeLONG(h);
+	    out.writeLONG(maxlev);
+	    out.writeLONG(curmsk);
+	if (!out.endchunk ()) {
+	    int e = errno; cerr << "ImageRGBL::save_xpo : error at writing HDR_ chunk " << fname << " : " << strerror(e) << endl; return false;
+	}
+
+	setmax();
+	int maxv = max(maxr, maxg);
+	maxv = max(maxv, maxb);
+
+	if (maxv < 256) {
+	    for (int y=0 ; y<h ; y++) {
+		out.startchunk ("LI_8", 4 + 3*w);
+		for (int x=0 ; x<w ; x++) {
+		    out.writeBYTE (r[x][y]);
+		    out.writeBYTE (g[x][y]);
+		    out.writeBYTE (b[x][y]);
+		}
+		if (!out.endchunk ()) {
+		    int e = errno; cerr << "ImageRGBL::save_xpo : error at writing LI_8(" << y << ") chunk " << fname << " : " << strerror(e) << endl; return false;
+		}
+	    }
+	} else if (maxv < 65536) {
+	    for (int y=0 ; y<h ; y++) {
+		out.startchunk ("LI16", 4 + 3*2*w);
+		for (int x=0 ; x<w ; x++) {
+		    out.writeWORD (r[x][y]);
+		    out.writeWORD (g[x][y]);
+		    out.writeWORD (b[x][y]);
+		}
+		if (!out.endchunk ()) {
+		    int e = errno; cerr << "ImageRGBL::save_xpo : error at writing LI16(" << y << ") chunk " << fname << " : " << strerror(e) << endl; return false;
+		}
+	    }
+	} else {
+	    for (int y=0 ; y<h ; y++) {
+		out.startchunk ("LI32", 4 + 3*4*w);
+		for (int x=0 ; x<w ; x++) {
+		    out.writeWORD (r[x][y]);
+		    out.writeWORD (g[x][y]);
+		    out.writeWORD (b[x][y]);
+		}
+		if (!out.endchunk ()) {
+		    int e = errno; cerr << "ImageRGBL::save_xpo : error at writing LI32(" << y << ") chunk " << fname << " : " << strerror(e) << endl; return false;
+		}
+	    }
+	}
+
+	if (msk != NULL) {
+	    if (curmsk < 256) {
+		for (int y=0 ; y<h ; y++) {
+		    out.startchunk ("MK_8", 4 + w);
+		    for (int x=0 ; x<w ; x++) {
+			out.writeBYTE (msk[x][y]);
+		    }
+		    if (!out.endchunk ()) {
+			int e = errno; cerr << "ImageRGBL::save_xpo : error at writing MK_8(" << y << ") chunk " << fname << " : " << strerror(e) << endl; return false;
+		    }
+		}
+	    } else {
+		for (int y=0 ; y<h ; y++) {
+		    out.startchunk ("MK16", 4 + 2*w);
+		    for (int x=0 ; x<w ; x++) {
+			out.writeWORD (msk[x][y]);
+		    }
+		    if (!out.endchunk ()) {
+			int e = errno; cerr << "ImageRGBL::save_xpo : error at writing MK16(" << y << ") chunk " << fname << " : " << strerror(e) << endl; return false;
+		    }
+		}
+	    }
+	}
+
+	out.close();
+	return true;
+    }
+#endif
+
     bool ImageRGBL::turnmaskon (int defvalue /* = 1 */) {
 	if (!allocate_mask())
 	    return false;
@@ -277,6 +530,115 @@ bool ImageRGBL::chrono = false;
 		maxl = max(maxl, l[x][y]); minl = min(minl, l[x][y]);
 	    }
 	}
+    }
+
+
+    
+    ImageRGBL *ImageRGBL::silly (ImageRGBL &gauss, double strength, double resilient) {
+	ImageRGBL * Pres = new ImageRGBL (w, h);
+	if (Pres == NULL) {
+	    cerr << "could not allocate silly image " << w << " x " << h << endl;
+	    return NULL;
+	}
+	
+	ImageRGBL &res = *Pres;
+
+	int x, y;
+	for (x=0 ; x<w ; x++) for (y=0 ; y<h ; y++) {
+	    res.r[x][y] = (r[x][y] - gauss.r[x][y]) * strength + gauss.r[x][y] * resilient;
+	    res.g[x][y] = (g[x][y] - gauss.g[x][y]) * strength + gauss.g[x][y] * resilient;
+	    res.b[x][y] = (b[x][y] - gauss.b[x][y]) * strength + gauss.b[x][y] * resilient;
+	}
+
+	return Pres;
+    }
+
+    ImageRGBL *ImageRGBL::gauss (double ray, int topceil) {
+	int iray = 1 + (int)ray;
+	iray = iray*2+1;
+	ImageRGBL *gos = new ImageRGBL (w, h);
+	if (gos == NULL) {
+	    cerr << "could not allocate gaussian image " << w << " x " << h << endl;
+	    return NULL;
+	}
+	
+	double ** convol;
+
+	bool all_ok = true;
+	for (;;) {
+	    convol = (double **)malloc (iray * sizeof (double *)); if (convol == NULL) break;
+
+	    for (int i=0 ; i<iray ; i++) {
+		convol[i] = (double *)malloc (iray * sizeof (double)); if (convol[i] == NULL) { all_ok = false; break; }
+	    }
+	    break;
+	}
+	if ((!all_ok) && (convol != NULL)) {
+	    for (int i=0 ; i<iray ; i++) {
+		if (convol[i] == NULL)
+		    break;
+		free (convol[i]);
+	    }
+	}
+
+	int i,j;
+	double x, y;
+	int shift =  1 + (int)ray;
+	for (i=0; i<iray; i++)  for (j=0; j<iray; j++) {
+	    x = i-shift, y = j-shift;
+	    double  r = sqrt(x*x+y*y) / (0.6 * ray);
+	    // exp(-(x/(0.6*10))^2)
+
+
+	    convol[i][j] = exp (-r * r);
+
+//	    r = sqrt(x*x+y*y);
+//	    if (r<=ray)
+//		convol[i][j] = 1.0;
+//	    else
+//		convol[i][j] = 0.0;
+	}
+	double sum = 0.0;
+	for (i=0; i<iray; i++)  for (j=0; j<iray; j++) {
+	    sum += convol[i][j];
+	}
+	for (i=0; i<iray; i++)  for (j=0; j<iray; j++) {
+	    convol[i][j] /= sum;
+	}
+
+
+	for (int x=0; x<w ; x++)  {  for (int y=0 ; y<h ; y++) {
+	    double sumr = 0.0, sumg = 0.0, sumb = 0.0;
+	    double sr = 0.0, sg =0.0, sb = 0.0;
+	    for (i=0; i<iray; i++)  for (j=0; j<iray; j++) {
+		int xx = x+i-shift;
+		int yy = y+j-shift;
+		if ((xx>0) && (xx<w) && (yy>0) && (yy<h)) {
+		    if (r[xx][yy]+g[xx][yy]+b[xx][yy] < 3*topceil) {
+			sumr += r[xx][yy] * convol[i][j], sr += convol[i][j];
+			sumg += g[xx][yy] * convol[i][j], sg += convol[i][j];
+			sumb += b[xx][yy] * convol[i][j], sb += convol[i][j];
+		    }		    
+
+//		    if (r[xx][yy] < topceil) sumr += r[xx][yy] * convol[i][j], sr += convol[i][j];
+//		    if (g[xx][yy] < topceil) sumg += g[xx][yy] * convol[i][j], sg += convol[i][j];
+//		    if (b[xx][yy] < topceil) sumb += b[xx][yy] * convol[i][j], sb += convol[i][j];
+		}
+	    }
+	    if (sr != 0.0) gos->r[x][y] = sumr / sr; else gos->r[x][y] = r[x][y]; 
+	    if (sg != 0.0) gos->g[x][y] = sumg / sg; else gos->g[x][y] = g[x][y];
+	    if (sb != 0.0) gos->b[x][y] = sumb / sb; else gos->b[x][y] = b[x][y];
+	}   cerr << "  " << (100*x)/w << "%\r" ; }
+
+
+	for (int i=0 ; i<iray ; i++) {
+	    if (convol[i] == NULL)
+		break;
+	    free (convol[i]);
+	}
+
+cerr << "here" << endl;
+	return gos;
     }
 
     ImageRGBL *ImageRGBL::rotate (double ang) {
@@ -519,8 +881,11 @@ bool ImageRGBL::chrono = false;
 	SDL_UpdateRect(&surface, 0, 0, 0, 0);
     }
 
+    inline double gamma256 (double x, double gamma) {
+	return pow (x / 256.0, gamma) * 256.0;
+    }
 
-    void ImageRGBL::renderzoom (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs, int xs, int ys, int ws, int hs) {
+    void ImageRGBL::renderzoom (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs, double gamma, int xs, int ys, int ws, int hs) {
 	int x,y;
 	double xr = (double)ws / width,
 	       yr = (double)hs / height;
@@ -560,11 +925,13 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 		tb += max(0, b[sx+i][sy+j] - (bnoise+base));
 		n ++;
 	    }
-	    putpixel (surface, x+xoff, y+yoff, min(255,(int)((gain * tr))/n), min(255,(int)((gain * tg)/n)), min(255,(int)((gain * tb)/n)));
+	    putpixel (surface,
+		x+xoff, y+yoff,
+		    min ( 255 , (int) gamma256 ((gain * tr)/n, gamma) ),
+		    min ( 255 , (int) gamma256 ((gain * tg)/n, gamma) ),
+		    min ( 255 , (int) gamma256 ((gain * tb)/n, gamma) )
+	    );
 	}
-	putpixel (surface, 10,10, 255,255,255);
-	putpixel (surface, 20,20, 255,0,255);
-	putpixel (surface, 10,20, 255,0,0);
 	SDL_UnlockSurface(&surface);
 	SDL_UpdateRect(&surface, 0, 0, 0, 0);
     }
@@ -640,7 +1007,10 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 		    tb += b[sx+i][sy+j];
 		    n ++;
 		}
-		int s = (255 * (((tr + tg + tb)/n) - mini)) / (maxi-mini);
+		int s = (maxi-mini != 0) ?
+			    (255 * (((tr + tg + tb)/n) - mini)) / (maxi-mini)
+			  : (255 * (((tr + tg + tb)/n) - mini));
+		    ;
 		if (s < 0) s = 0;
 		s = min (255, s);
 		putpixel (surface, x+xoff, y+yoff, s,s,s);
@@ -715,7 +1085,7 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	SDL_UpdateRect(&surface, 0, 0, 0, 0);
     }
 
-    void ImageRGBL::render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs) {
+    void ImageRGBL::render (SDL_Surface &surface, int xoff, int yoff, int width, int height, int base, int nblevs, double gamma) {
 	int x,y;
 	double xr = (double)w / width,
 	       yr = (double)h / height;
@@ -755,16 +1125,21 @@ cout << " render: " << rnoise << " " << gnoise << " " << bnoise << endl;
 		tb += max(0, b[sx+i][sy+j] - (bnoise+base));
 		n ++;
 	    }
-	    putpixel (surface, x+xoff, y+yoff, min(255,(int)((gain * tr)/n)), min(255,(int)((gain * tg)/n)), min(255,(int)((gain * tb)/n)));
+	    putpixel (surface,
+		x+xoff, y+yoff,
+		    min ( 255 , (int) gamma256 ((gain * tr)/n, gamma) ),
+		    min ( 255 , (int) gamma256 ((gain * tg)/n, gamma) ),
+		    min ( 255 , (int) gamma256 ((gain * tb)/n, gamma) )
+//		min(255,(int)((gain * tr)/n)),
+//		min(255,(int)((gain * tg)/n)),
+//		min(255,(int)((gain * tb)/n))
+	    );
 	}
-	putpixel (surface, 10,10, 255,255,255);
-	putpixel (surface, 20,20, 255,0,255);
-	putpixel (surface, 10,20, 255,0,0);
 	SDL_UnlockSurface(&surface);
 	SDL_UpdateRect(&surface, 0, 0, 0, 0);
     }
 
-    bool ImageRGBL::savecorrected (const char * fname, int base, int nblevs) {
+    bool ImageRGBL::savecorrected (const char * fname, int base, int nblevs, double gamma) {
 	map<int,int>::iterator mi, mi_max;
 	int vmax;
 	int rnoise, gnoise, bnoise;
@@ -815,9 +1190,13 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 		tg += max(0, g[x][y] - (gnoise+base));
 		tb += max(0, b[x][y] - (bnoise+base));
 
-		*p++ = (png_byte)(min(255,(int)(gain * tr)));
-		*p++ = (png_byte)(min(255,(int)(gain * tg)));
-		*p++ = (png_byte)(min(255,(int)(gain * tb)));
+		*p++ = (png_byte)    min ( 255 , (int) gamma256 ((gain * tr), gamma) );
+		*p++ = (png_byte)    min ( 255 , (int) gamma256 ((gain * tg), gamma) );
+		*p++ = (png_byte)    min ( 255 , (int) gamma256 ((gain * tb), gamma) );
+
+//		*p++ = (png_byte)(min(255,(int)(gain * tr)));
+//		*p++ = (png_byte)(min(255,(int)(gain * tg)));
+//		*p++ = (png_byte)(min(255,(int)(gain * tb)));
 		*p++ = 255;
 	    }
 	}
@@ -1082,6 +1461,19 @@ if (debug) cerr << "hr.size() = " << hr.size() << endl
 	histog_valid = false;
     }
 
+    void ImageRGBL::remove_refnoise (ImageRGBL & refnoise, int n) {
+	int x, y, 
+	    minw = min(w, refnoise.w), 
+	    minh = min(h, refnoise.h);
+	for (x=0 ; x<minw ; x++) for (y=0 ; y<minh ; y++) {
+	    r[x][y] = max (0, n * r[x][y] - refnoise.r[x][y]);
+	    g[x][y] = max (0, n * g[x][y] - refnoise.g[x][y]);
+	    b[x][y] = max (0, n * b[x][y] - refnoise.b[x][y]);
+	    l[x][y] = r[x][y]+g[x][y]+b[x][y];
+	}
+	histog_valid = false;
+    }
+
     void ImageRGBL::falloff_correct (ImageRGBL & falloffref) {
 	int x, y, 
 	    minw = min(w, falloffref.w), 
@@ -1090,9 +1482,9 @@ if (debug) cerr << "hr.size() = " << hr.size() << endl
 //	    r[x][y] = (int)((falloffref.maxr/(double)falloffref.r[x][y]) * r[x][y]);
 //	    g[x][y] = (int)((falloffref.maxg/(double)falloffref.g[x][y]) * g[x][y]);
 //	    b[x][y] = (int)((falloffref.maxb/(double)falloffref.b[x][y]) * b[x][y]);
-	    r[x][y] = (int)((falloffref.maxl/(double)falloffref.l[x][y]) * r[x][y]);
-	    g[x][y] = (int)((falloffref.maxl/(double)falloffref.l[x][y]) * g[x][y]);
-	    b[x][y] = (int)((falloffref.maxl/(double)falloffref.l[x][y]) * b[x][y]);
+	    r[x][y] = (int)(((double)falloffref.maxl/(double)falloffref.l[x][y]) * (double)r[x][y] * 100);
+	    g[x][y] = (int)(((double)falloffref.maxl/(double)falloffref.l[x][y]) * (double)g[x][y] * 100);
+	    b[x][y] = (int)(((double)falloffref.maxl/(double)falloffref.l[x][y]) * (double)b[x][y] * 100);
 	    l[x][y] = r[x][y] + g[x][y] + b[x][y];
 	}
 	histog_valid = false;
@@ -1502,6 +1894,7 @@ cerr << "... done." << endl;
 	return s;
     }
 
+
 #ifdef ORIGINALSETTINGS
 #   define SUBSBASE 4
 #   define NBMAXSPOTS 2000
@@ -1511,6 +1904,17 @@ cerr << "... done." << endl;
 #   define NBMAXSPOTS 2000
 #   define BRIGHTLISTDIVISOR 20
 #endif
+
+// JDJDJDJD pour m31 surexposee (was used for orion m42+flameneb first startrack)
+//  virgo first attempt
+#   define SUBSBASE 4
+#   define NBMAXSPOTS 4000
+#   define BRIGHTLISTDIVISOR 20
+
+// JDJDJDJD pour panstarrs 
+//#   define SUBSBASE 4
+//#   define NBMAXSPOTS 60
+//#   define BRIGHTLISTDIVISOR 20
 
     StarsMap * ImageRGBL::graphe_stars (void) {
 	static Chrono chrono_subsampling("subsampling image to subsbase"); chrono_subsampling.start();

@@ -5,7 +5,7 @@
 
 /* Header file for libdrawing-SDL */
 
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,10 +1,17 @@
-COMPFLAGS=-O4
+
+
+COMPFLAGS=-O4 -g
 #COMPFLAGS=-g
+
+# for macports ...
+ADDINCLUDES=-I/opt/local/include
+
+CFLAGS=${COMPFLAGS} ${ADDINCLUDES}
 
 
 all: exposit
 
-vimtest: exposit show
+oldvimtest: exposit show testchunkio
 	# ./exposit -noise=noise_10sec1.jpg ../../m101/*07.jpg ../../m101/*.jpg
 
 	#	./exposit -falloff=falloff_180mmf2.8.png ../../m101/*04.jpg ../../m101/cap*.jpg
@@ -37,50 +44,61 @@ vimtest: exposit show
 	#./exposit -crop=10,10,20,20
 
 	###########################333
-	./show
+	#######./show
+
+	./testchunkio
+
+vimtest: exposit show testchunkio
+	./exposit -readxpo=m42+flame.xpo
 
 
-exposit: simplechrono.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o interact.o
-	g++ -Wall ${COMPFLAGS} -o exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image -lpng
+testchunkio: testchunkio.o chunkio.o
+	g++ -Wall ${CFLAGS} -o testchunkio testchunkio.o chunkio.o
+
+exposit: simplechrono.o chunkio.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o interact.o 
+	g++ -Wall ${CFLAGS} -o exposit exposit.o chunkio.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image -lpng
 
 interact.o: interact.cpp simplechrono.h
-	g++ -Wall ${COMPFLAGS} -c interact.cpp `sdl-config --cflags`
+	g++ -Wall ${CFLAGS} -c interact.cpp `sdl-config --cflags`
 
 exposit.o: exposit.cpp simplechrono.h
-	g++ -Wall ${COMPFLAGS} -c exposit.cpp `sdl-config --cflags`
+	g++ -Wall ${CFLAGS} -c exposit.cpp `sdl-config --cflags`
 
 gp_imagergbl.o: gp_imagergbl.cpp gp_imagergbl.h
-	g++ -Wall ${COMPFLAGS} -c gp_imagergbl.cpp `sdl-config --cflags`
+	g++ -Wall ${CFLAGS} -c gp_imagergbl.cpp `sdl-config --cflags`
+
+chunkio.o: chunkio.cpp
+	g++ -Wall ${CFLAGS} -c chunkio.cpp
 
 starsmap.o: starsmap.cpp starsmap.h
-	g++ -Wall ${COMPFLAGS} -c starsmap.cpp
+	g++ -Wall ${CFLAGS} -c starsmap.cpp
 
 simplechrono.o: simplechrono.cpp simplechrono.h
-	g++ -Wall ${COMPFLAGS} -c simplechrono.cpp
+	g++ -Wall ${CFLAGS} -c simplechrono.cpp
 
 vstar.o: vstar.cpp vstar.h
-	g++ -Wall ${COMPFLAGS} -c vstar.cpp
+	g++ -Wall ${CFLAGS} -c vstar.cpp
 
 draw.o: draw.c draw.h
-	gcc -Wall ${COMPFLAGS} -c draw.c
+	gcc -Wall ${CFLAGS} -c draw.c `sdl-config --cflags`
 
 jeuchar.o: jeuchar.c jeuchar.h
-	gcc -Wall ${COMPFLAGS} -c jeuchar.c `sdl-config --cflags`
+	gcc -Wall ${CFLAGS} -c jeuchar.c `sdl-config --cflags`
 
 graphutils.o: graphutils.c graphutils.h
-	gcc -Wall ${COMPFLAGS} -c graphutils.c `sdl-config --cflags`
+	gcc -Wall ${CFLAGS} -c graphutils.c `sdl-config --cflags`
 
 clean:
-	rm -f exposit exposit.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o show show.o types.vim tags 
+	rm -f exposit *.o show testchunkio types.vim tags 
 
 distclean: clean
 
 
 ####################################################################################
 
-show: show.o draw.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o simplechrono.o draw.o
-	g++ -Wall ${COMPFLAGS} -o show show.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o `sdl-config --cflags --libs` -lSDL_image -lpng
+show: show.o chunkio.o draw.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o simplechrono.o draw.o
+	g++ -Wall ${CFLAGS} -o show chunkio.o show.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o `sdl-config --cflags --libs` -lSDL_image -lpng
 
 show.o: show.cpp show.h
-	g++ -Wall ${COMPFLAGS} -c `sdl-config --cflags` show.cpp
+	g++ -Wall ${CFLAGS} -c `sdl-config --cflags` show.cpp
 

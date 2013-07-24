@@ -766,8 +766,10 @@ static ImageRGBL *prepic = NULL, *curpic = NULL;
 		    }
 		} else {
 
+		    char imgtype[4] = "JPG";
+
 		    SDL_RWops *frommem = SDL_RWFromMem(p, len);
-		    SDL_Surface *surface = IMG_LoadTyped_RW (frommem, 1, "JPG");
+		    SDL_Surface *surface = IMG_LoadTyped_RW (frommem, 1, &imgtype[0]);
 		    
 		    curpic = new ImageRGBL (*surface);
 		    if (curpic == NULL) {
