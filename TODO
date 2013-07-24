@@ -11,13 +11,15 @@ todo
     o export as a layered pic ?
     o read EXIF expositions / focal / values ?
 
-    o aggregate several falloff reference files for better interpolation ?
+  x o aggregate several falloff reference files for better interpolation ?  
+    o artificially white the falloff ref and apply local color drifts for sensors stains ?
     o automatically match falloff according to exif values ?
 
     o try to remove noise before computing starsmap ?
-    o try to correct falloff before computing starsmap ?
-    o try to remove noise/falloff before finetuning ?
+  ? o try to correct falloff before computing starsmap ?
+  ? o try to remove noise/falloff before finetuning ?
 
+    o remove gradient from ultrablurred pic
 
 done
     o use the whole overlapping zone for fine tuning ? beware of

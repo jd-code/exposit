@@ -153,6 +153,7 @@ int simplenanosleep (int ms);
 // ... ---------------------
 
 int gain = -1;
+double gamma = 1.0;
 bool interactfly = true;
 
 bool render_menu (SDL_Surface &surface, int xoff, int yoff, int width, int height, 
@@ -353,8 +354,8 @@ cout << "nbimage = " << nbimage << endl;
 	    gain = gain * (nbimage+1)/nbimage;
 	}
 
-	sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain);
-	sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain,
+	sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain, gamma);
+	sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain, gamma,
 				xzoom, yzoom, wzoom, hzoom);
 	SDL_Rect r;
 	r.x = screen->w/2;
@@ -372,6 +373,7 @@ cout << "nbimage = " << nbimage << endl;
     bool redrawsum = false;
     bool redrawhist = false;
     bool wemustsave = false;
+    bool wemustsaveXPO = false;
 
     int nwzoom;
     int nhzoom;
@@ -478,6 +480,17 @@ cout << "nbimage = " << nbimage << endl;
 			    redrawzoom = true;
 			    break;
 
+			case SDLK_b:
+			    gamma *= 1.02;
+			    redrawzoom = true;
+			    redrawsum = true;
+			    break;
+
+			case SDLK_n:
+			    gamma /= 1.02;
+			    redrawzoom = true;
+			    redrawsum = true;
+			    break;
 
 			case SDLK_j:
 			    base += sum_image->Max/(screen->w/2);
@@ -545,6 +558,10 @@ cout << "nbimage = " << nbimage << endl;
 			    wemustsave = true;
 			    break;
 
+			case SDLK_w:
+			    wemustsaveXPO = true;
+			    break;
+
 			case SDLK_g:
 			    interactfly = false;
 			    break;
@@ -602,7 +619,7 @@ cout << "nbimage = " << nbimage << endl;
 	}
 	if (nbimage != 0) {
 	    if (redrawzoom) {
-		sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain,
+		sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain, gamma,
 					xzoom, yzoom, wzoom, hzoom);
 		if (zoomactive) {
 		    Uint32 color = SDL_MapRGB(screen->format, 192, 192, 255);
@@ -613,7 +630,7 @@ cout << "nbimage = " << nbimage << endl;
 		redrawzoom = false;
 	    }
 	    if (redrawsum) {
-		sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain);
+		sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain, gamma);
 		redrawsum = false;
 	    }
 	    if (redrawmenu || redrawhist) {
@@ -645,9 +662,19 @@ static int nbprint = 0;
 		snprintf (fname, 50, "test_%04d.png", nbprint);
 		nbprint++;
 		cerr << "saving corrected pic " << fname << "..." << endl;
-		sum_image->savecorrected (fname, base, gain);
+		sum_image->savecorrected (fname, base, gain, gamma);
 		cerr << " ... done." << endl;
 		wemustsave = false;
+	    }
+	    if (wemustsaveXPO) {
+static int nbprint = 0;
+		char fname[50];
+		snprintf (fname, 50, "test_%04d.xpo", nbprint);
+		nbprint++;
+		cerr << "saving XPO pic " << fname << "..." << endl;
+		sum_image->save_xpo (fname);
+		cerr << " ... done." << endl;
+		wemustsaveXPO = false;
 	    }
 	}
     
