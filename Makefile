@@ -48,8 +48,9 @@ oldvimtest: exposit show testchunkio
 
 	./testchunkio
 
-vimtest: exposit show testchunkio
-	./exposit -readxpo=m42+flame.xpo
+vimtest: exposit testchunkio
+	./testchunkio
+	# ./exposit -readxpo=m42+flame.xpo
 
 
 testchunkio: testchunkio.o chunkio.o
@@ -69,6 +70,9 @@ gp_imagergbl.o: gp_imagergbl.cpp gp_imagergbl.h
 
 chunkio.o: chunkio.cpp
 	g++ -Wall ${CFLAGS} -c chunkio.cpp
+
+testchunkio.o: testchunkio.cpp
+	g++ -Wall ${CFLAGS} -c testchunkio.cpp
 
 starsmap.o: starsmap.cpp starsmap.h
 	g++ -Wall ${CFLAGS} -c starsmap.cpp
