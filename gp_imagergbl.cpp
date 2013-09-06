@@ -254,6 +254,7 @@ static bool debugreadxpo = true;
 	    return;
 	}
 	int chunk;
+	int x = 0;
 	int y = 0;
 	int ymsk = 0;
 	while (in && ((chunk = in.getnextchunk ()) != -1)) {
@@ -281,11 +282,12 @@ if (debugreadxpo)
 			cerr << "extraneous line LI_8 in " << fname << endl;
 			break;
 		    }
-		    for (int x=0; x<w ; x++) {
-			in.readBYTE (r[x][y]);
-			in.readBYTE (g[x][y]);
-			in.readBYTE (b[x][y]);
+		    for (x=0; x<w ; x++) {
+			if (!in.readBYTE (r[x][y])) break;
+			if (!in.readBYTE (g[x][y])) break;
+			if (!in.readBYTE (b[x][y])) break;
 		    }
+if ((debugreadxpo) && (x != w)) cerr << "read_xpo :: " << x << " pixels read instead of " << w << endl;
 		    y++;
 		    break;
 		case 0x3631494c:    //LI16
@@ -297,11 +299,12 @@ if (debugreadxpo)
 			cerr << "extraneous line LI16 in " << fname << endl;
 			break;
 		    }
-		    for (int x=0; x<w ; x++) {
-			in.readWORD (r[x][y]);
-			in.readWORD (g[x][y]);
-			in.readWORD (b[x][y]);
+		    for (x=0; x<w ; x++) {
+			if (!in.readWORD (r[x][y])) break;
+			if (!in.readWORD (g[x][y])) break;
+			if (!in.readWORD (b[x][y])) break;
 		    }
+if ((debugreadxpo) && (x != w)) cerr << "read_xpo :: " << x << " pixels read instead of " << w << endl;
 		    y++;
 		    break;
 		case 0x3233494c:    //LI32
@@ -313,11 +316,12 @@ if (debugreadxpo)
 			cerr << "extraneous line LI32 in " << fname << endl;
 			break;
 		    }
-		    for (int x=0; x<w ; x++) {
-			in.readLONG (r[x][y]);
-			in.readLONG (g[x][y]);
-			in.readLONG (b[x][y]);
+		    for (x=0; x<w ; x++) {
+			if (!in.readLONG (r[x][y])) break;
+			if (!in.readLONG (g[x][y])) break;
+			if (!in.readLONG (b[x][y])) break;
 		    }
+if ((debugreadxpo) && (x != w)) cerr << "read_xpo :: " << x << " pixels read instead of " << w << endl;
 		    y++;
 		    break;
 
@@ -341,9 +345,10 @@ if (debugreadxpo)
 			    break;
 			}
 		    }
-		    for (int x=0; x<w ; x++) {
-			in.readBYTE (msk[x][ymsk]);
+		    for (x=0; x<w ; x++) {
+			if (!in.readBYTE (msk[x][ymsk])) break;
 		    }
+if ((debugreadxpo) && (x != w)) cerr << "read_xpo :: " << x << " pixels read instead of " << w << endl;
 		    ymsk ++;
 		    break;
 		case 0x36314b4d:    // MK16
@@ -366,9 +371,10 @@ if (debugreadxpo)
 			    break;
 			}
 		    }
-		    for (int x=0; x<w ; x++) {
-			in.readWORD (msk[x][ymsk]);
+		    for (x=0; x<w ; x++) {
+			if (!in.readWORD (msk[x][ymsk])) break;
 		    }
+if ((debugreadxpo) && (x != w)) cerr << "read_xpo :: " << x << " pixels read instead of " << w << endl;
 		    ymsk ++;
 		    break;
 
@@ -388,6 +394,8 @@ if (debugreadxpo)
     cerr << "read_xpo :: " << y << " lines read,  " << ymsk << " msk lines read." << endl;
 	if (isallocated)
 	    setluminance();
+if (debugreadxpo)
+    cerr << "read_xpo :: at end : " << w << "x" << h << "  maxlev=" << maxlev << "  curmsk=" << curmsk << endl;
     }
 
     bool ImageRGBL::save_xpo (const char * fname) {
@@ -441,9 +449,9 @@ if (debugreadxpo)
 	    for (int y=0 ; y<h ; y++) {
 		out.startchunk ("LI32", 4 + 3*4*w);
 		for (int x=0 ; x<w ; x++) {
-		    out.writeWORD (r[x][y]);
-		    out.writeWORD (g[x][y]);
-		    out.writeWORD (b[x][y]);
+		    out.writeLONG (r[x][y]);
+		    out.writeLONG (g[x][y]);
+		    out.writeLONG (b[x][y]);
 		}
 		if (!out.endchunk ()) {
 		    int e = errno; cerr << "ImageRGBL::save_xpo : error at writing LI32(" << y << ") chunk " << fname << " : " << strerror(e) << endl; return false;
@@ -1404,7 +1412,7 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	hb.erase(hb.begin(), hb.end());
 	hl.erase(hl.begin(), hl.end());
 	if (msk == NULL) {
-if (debug) cout << "fasthistogramme sans curmsk" << endl;
+if (debug) cout << "fasthistogramme " << w << "x" << h << " sans curmsk" << endl;
 	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
 //		hr[r[x][y]] ++;
 //		hg[g[x][y]] ++;
@@ -1416,7 +1424,7 @@ if (debug) cout << "fasthistogramme sans curmsk" << endl;
 		hl[l[x][y]&0xFFFFFFF0] ++;
 	    }
 	} else {
-if (debug) cout << "fasthistogramme avec curmsk = " << curmsk << endl;
+if (debug) cout << "fasthistogramme " << w << "x" << h << " avec curmsk = " << curmsk << endl;
 	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
 		if (msk[x][y] == curmsk) {
 //		    hr[r[x][y]] ++;
@@ -1442,6 +1450,7 @@ if (debug) cerr << "hr.size() = " << hr.size() << endl
 	Max = max (Max, mi->first);
 	mi = hb.end(); mi--;
 	Max = max (Max, mi->first);
+if (debug) cerr << "Max=" << Max << endl;
     }
 
     void ImageRGBL::fasthistogramme (int step) {

@@ -583,18 +583,20 @@ cerr << "loading " << cmde[i]+9 << " ..." << endl;
 		}
 	    }
 
-// JDJDJDJD  this is about trying to make some HDR ?????
-if (0)
-{   ImageRGBL *gauss = sum_image->gauss (2, 257 * sum_image->curmsk);
-//    sum_image = gauss;
-    ImageRGBL *silly = sum_image->silly (*gauss, 30.0, 0.0);
-    sum_image = silly;
-    sum_image->setluminance();
-}
 		    
-cerr << "...done." << endl;
-nbimage = 1;
-	    break;
+	    cerr << "...done." << endl;
+	    nbimage = 1;
+	} else if (strncmp ("-hdrtest", cmde[i], 8) == 0) {
+	    // JDJDJDJD  this is about trying to make some HDR ?????
+	    cerr << "entering gauss" << endl;
+	    ImageRGBL *gauss = sum_image->gauss (80, 257 * sum_image->curmsk);
+	    //    sum_image = gauss;
+	    cerr << "entering silly" << endl;
+	    ImageRGBL *silly = sum_image->silly (*gauss, 30.0, 1.0);
+	    sum_image = silly;
+	    cerr << "entering setluminance" << endl;
+	    sum_image->setluminance();
+	    cerr << "done..:" << endl;
 	} else if (strncmp ("-crop=", cmde[i], 6) == 0) {
 	    string s (cmde[i]+6);
 	    size_t p = 0, q = 0;
@@ -781,6 +783,9 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 	}
     }
 
+cerr << "icicicicicicicicici" << endl;
+    
+
     interact (nbimage, true);
 
 //    sum_image->minimize ();
@@ -950,6 +955,7 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 	}
     }
 
+cerr << "ici" << endl;
     interact (nbimage, true);
 
 //    sum_image->minimize ();
