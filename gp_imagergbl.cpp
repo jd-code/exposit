@@ -238,6 +238,7 @@ bool ImageRGBL::chrono = false;
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {
+static bool debugreadxpo = true;
 	ifchunk in(fname);
 	if (!in) {
 	    int e = errno;
@@ -262,6 +263,8 @@ bool ImageRGBL::chrono = false;
 		    in.readLONG (h);
 		    in.readLONG (maxlev);
 		    in.readLONG (curmsk);
+if (debugreadxpo)
+    cerr << "read_xpo :: " << w << "x" << h << "  maxlev=" << maxlev << "  curmsk=" << curmsk << endl;
 		    if (!in) {
 			int e = errno; cerr << "ImageRGBL::read_xpo : error at reading HDR_ chunk " << fname << " : " << strerror(e) << endl; return;
 			return;
@@ -381,6 +384,8 @@ bool ImageRGBL::chrono = false;
 		    break;
 	    }
 	}
+if (debugreadxpo)
+    cerr << "read_xpo :: " << y << " lines read,  " << ymsk << " msk lines read." << endl;
 	if (isallocated)
 	    setluminance();
     }
@@ -494,6 +499,8 @@ bool ImageRGBL::chrono = false;
 	    for (x=0 ; x<w ; x++) for (y=0 ; y<h ; y++)
 		if (msk[x][y] == curmsk)
 		    l[x][y] = r[x][y] + g[x][y] + b[x][y];
+		else	// JDJDJDJD pas sur que ce soit un bon concept cette histoire !
+		    l[x][y] = 0;
 	}
     }
 
