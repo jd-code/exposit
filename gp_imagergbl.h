@@ -91,7 +91,9 @@ static bool chrono;
 	ImageRGBL *rotate (double ang);
 	ImageRGBL *doublescale (void);
 
+	int shiftnonegative (void);
 	ImageRGBL *gauss (double ray, int topceil);
+	ImageRGBL *gaussfaster (double ray, int topceil);
 	ImageRGBL *silly (ImageRGBL &gauss, double strength, double resilient);
 
     void render_onehist (int base, int noise, int gain, map <int,int> &hs, int Max, int vmax,

@@ -589,10 +589,14 @@ cerr << "loading " << cmde[i]+9 << " ..." << endl;
 	} else if (strncmp ("-hdrtest", cmde[i], 8) == 0) {
 	    // JDJDJDJD  this is about trying to make some HDR ?????
 	    cerr << "entering gauss" << endl;
-	    ImageRGBL *gauss = sum_image->gauss (80, 257 * sum_image->curmsk);
-	    //    sum_image = gauss;
+	    ImageRGBL *gauss = sum_image->gaussfaster (100, 257 * sum_image->curmsk);
+	    // ImageRGBL *gauss = sum_image->gauss (30, 257 * sum_image->curmsk);
+	    // sum_image = gauss;
 	    cerr << "entering silly" << endl;
-	    ImageRGBL *silly = sum_image->silly (*gauss, 30.0, 1.0);
+	    ImageRGBL *silly = sum_image->silly (*gauss, 1.7, 1.0);
+// int mini = silly->shiftnonegative();
+// cerr << "shiftnonegative = " << mini << endl;
+	    silly->fasthistogramme (5);
 	    sum_image = silly;
 	    cerr << "entering setluminance" << endl;
 	    sum_image->setluminance();

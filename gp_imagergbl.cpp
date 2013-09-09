@@ -548,7 +548,6 @@ if (debugreadxpo)
     }
 
 
-    
     ImageRGBL *ImageRGBL::silly (ImageRGBL &gauss, double strength, double resilient) {
 	ImageRGBL * Pres = new ImageRGBL (w, h);
 	if (Pres == NULL) {
@@ -566,6 +565,24 @@ if (debugreadxpo)
 	}
 
 	return Pres;
+    }
+
+    int ImageRGBL::shiftnonegative (void) {
+
+	int m = 0;
+	int x, y;
+	for (x=0 ; x<w ; x++) for (y=0 ; y<h ; y++) {
+	    if (r[x][y] < m) m = r[x][y];
+	    if (g[x][y] < m) m = g[x][y];
+	    if (b[x][y] < m) m = b[x][y];
+	}
+	for (x=0 ; x<w ; x++) for (y=0 ; y<h ; y++) {
+	    r[x][y] -= m;
+	    g[x][y] -= m;
+	    b[x][y] -= m;
+	}
+
+	return m;
     }
 
     ImageRGBL *ImageRGBL::gauss (double ray, int topceil) {
@@ -629,7 +646,8 @@ if (debugreadxpo)
 		int xx = x+i-shift;
 		int yy = y+j-shift;
 		if ((xx>0) && (xx<w) && (yy>0) && (yy<h)) {
-		    if (r[xx][yy]+g[xx][yy]+b[xx][yy] < 3*topceil) {
+		    //if (r[xx][yy]+g[xx][yy]+b[xx][yy] < 3*topceil) {
+		    if (true) {
 			sumr += r[xx][yy] * convol[i][j], sr += convol[i][j];
 			sumg += g[xx][yy] * convol[i][j], sg += convol[i][j];
 			sumb += b[xx][yy] * convol[i][j], sb += convol[i][j];
@@ -653,6 +671,109 @@ if (debugreadxpo)
 	}
 
 cerr << "here" << endl;
+	return gos;
+    }
+
+    ImageRGBL *ImageRGBL::gaussfaster (double ray, int topceil) {
+	int iray = 1 + (int)ray;
+	iray = iray*2+1;
+	ImageRGBL *gos1 = new ImageRGBL (w, h);
+	if (gos1 == NULL) {
+	    cerr << "could not allocate intermediate gaussian image " << w << " x " << h << endl;
+	    return NULL;
+	}
+	ImageRGBL *gos = new ImageRGBL (w, h);
+	if (gos == NULL) {
+	    cerr << "could not allocate final gaussian image " << w << " x " << h << endl;
+	    return NULL;
+	}
+	
+	double * convol;
+
+        convol = (double *)malloc (iray * sizeof (double));
+
+	if (convol == NULL) {
+	    cerr << "could not allocate gaussian lookup table " << iray << "x" << sizeof (double) << endl;
+	    delete (gos);
+	    return NULL;
+	}
+
+	int i;
+	double x;
+	int shift =  1 + (int)ray;
+	for (i=0; i<iray; i++) {
+	    x = i-shift;
+	    double  r = x / ray;
+	    // exp(-(x/(0.6*10))^2)
+
+
+	    convol[i] = exp (-2.71 * r * r);
+
+//	    r = sqrt(x*x+y*y);
+//	    if (r<=ray)
+//		convol[i][j] = 1.0;
+//	    else
+//		convol[i][j] = 0.0;
+	}
+	double sum = 0.0;
+	for (i=0; i<iray; i++) {
+	    sum += convol[i];
+	}
+	for (i=0; i<iray; i++) {
+	    convol[i] /= sum;
+	}
+
+
+	for (int x=0; x<w ; x++)  {  for (int y=0 ; y<h ; y++) {
+	    double sumr = 0.0, sumg = 0.0, sumb = 0.0;
+	    double sr = 0.0, sg =0.0, sb = 0.0;
+	    for (i=0; i<iray; i++) {
+		int xx = x+i-shift;
+		if ((xx>0) && (xx<w)) {
+		    // if (r[xx][y]+g[xx][y]+b[xx][y] < 3*topceil) {
+		    if (true) {
+			sumr += r[xx][y] * convol[i], sr += convol[i];
+			sumg += g[xx][y] * convol[i], sg += convol[i];
+			sumb += b[xx][y] * convol[i], sb += convol[i];
+		    }		    
+
+//		    if (r[xx][yy] < topceil) sumr += r[xx][yy] * convol[i][j], sr += convol[i][j];
+//		    if (g[xx][yy] < topceil) sumg += g[xx][yy] * convol[i][j], sg += convol[i][j];
+//		    if (b[xx][yy] < topceil) sumb += b[xx][yy] * convol[i][j], sb += convol[i][j];
+		}
+	    }
+	    if (sr != 0.0) gos1->r[x][y] = sumr / sr; else gos1->r[x][y] = r[x][y]; 
+	    if (sg != 0.0) gos1->g[x][y] = sumg / sg; else gos1->g[x][y] = g[x][y];
+	    if (sb != 0.0) gos1->b[x][y] = sumb / sb; else gos1->b[x][y] = b[x][y];
+	}   cerr << "  " << (100*x)/w << "%\r" ; }
+
+		for (int x=0; x<w ; x++)  {  for (int y=0 ; y<h ; y++) {
+		    double sumr = 0.0, sumg = 0.0, sumb = 0.0;
+		    double sr = 0.0, sg =0.0, sb = 0.0;
+		    for (int j=0; j<iray; j++) {
+			int yy = y+j-shift;
+			if ((yy>0) && (yy<h)) {
+			    // if (gos1->r[x][yy]+gos1->g[x][yy]+gos1->b[x][yy] < 3*topceil) {
+			    if (true) {
+				sumr += gos1->r[x][yy] * convol[j], sr += convol[j];
+				sumg += gos1->g[x][yy] * convol[j], sg += convol[j];
+				sumb += gos1->b[x][yy] * convol[j], sb += convol[j];
+			    }		    
+	
+	//		    if (r[xx][yy] < topceil) sumr += r[xx][yy] * convol[i][j], sr += convol[i][j];
+	//		    if (g[xx][yy] < topceil) sumg += g[xx][yy] * convol[i][j], sg += convol[i][j];
+	//		    if (b[xx][yy] < topceil) sumb += b[xx][yy] * convol[i][j], sb += convol[i][j];
+			}
+		    }
+		    if (sr != 0.0) gos->r[x][y] = sumr / sr; else gos->r[x][y] = gos1->r[x][y]; 
+		    if (sg != 0.0) gos->g[x][y] = sumg / sg; else gos->g[x][y] = gos1->g[x][y];
+		    if (sb != 0.0) gos->b[x][y] = sumb / sb; else gos->b[x][y] = gos1->b[x][y];
+		}   cerr << "  " << (100*x)/w << "%\r" ; }
+
+	delete (gos1);
+        free (convol);
+
+cerr << "there" << endl;
 	return gos;
     }
 
@@ -1916,16 +2037,18 @@ cerr << "... done." << endl;
 #   define NBMAXSPOTS 2000
 #   define BRIGHTLISTDIVISOR 10
 #else
-#   define SUBSBASE 8
-#   define NBMAXSPOTS 2000
-#   define BRIGHTLISTDIVISOR 20
+#   ifdef VIRGOSETTINGS
+	// JDJDJDJD pour m31 surexposee (was used for orion m42+flameneb first startrack)
+	//  virgo first attempt
+#   	define SUBSBASE 4
+#   	define NBMAXSPOTS 4000
+#   	define BRIGHTLISTDIVISOR 20
+#   else
+#       define SUBSBASE 8
+#       define NBMAXSPOTS 2000
+#       define BRIGHTLISTDIVISOR 20
+#   endif
 #endif
-
-// JDJDJDJD pour m31 surexposee (was used for orion m42+flameneb first startrack)
-//  virgo first attempt
-#   define SUBSBASE 4
-#   define NBMAXSPOTS 4000
-#   define BRIGHTLISTDIVISOR 20
 
 // JDJDJDJD pour panstarrs 
 //#   define SUBSBASE 4
