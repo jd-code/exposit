@@ -1058,7 +1058,7 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	SDL_LockSurface(&surface);
 	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
 	    int i, j, n = 0;
-	    int tr = 0, tg = 0, tb = 0;
+	    long tr = 0, tg = 0, tb = 0;
 	    int sx = (int)(x * xr + xs),
 		sy = (int)(y * yr + ys);
 	    for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
@@ -1176,7 +1176,7 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	SDL_LockSurface(&surface);
 	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
 	    int i, j, n = 0;
-	    int tr = 0, tg = 0, tb = 0;
+	    long tr = 0, tg = 0, tb = 0;
 	    int sx = (int)(x * xr),
 		sy = (int)(y * yr);
 	    for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
@@ -1209,7 +1209,7 @@ cout << " renderzoom: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	SDL_LockSurface(&surface);
 	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
 	    int i, j, n = 0;
-	    int tr = 0, tg = 0, tb = 0;
+	    long tr = 0, tg = 0, tb = 0;
 	    int sx = (int)(x * xr),
 		sy = (int)(y * yr);
 	    for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
@@ -1258,7 +1258,7 @@ cout << " render: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	SDL_LockSurface(&surface);
 	for (x=0 ; x<width ; x++) for (y=0 ; y<height ; y++) {
 	    int i, j, n = 0;
-	    int tr = 0, tg = 0, tb = 0;
+	    long tr = 0, tg = 0, tb = 0;
 	    int sx = (int)(x * xr),
 		sy = (int)(y * yr);
 	    for (i=0 ; i<(xr) ; i++) for (j=0 ; j<(yr) ; j++) {
@@ -1327,7 +1327,7 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 		return false;
 	    }
 	    for (x=0 ; x<w ; x++) {
-	    int tr = 0, tg = 0, tb = 0;
+	    long tr = 0, tg = 0, tb = 0;
 		tr += max(0, r[x][y] - (rnoise+base));
 		tg += max(0, g[x][y] - (gnoise+base));
 		tb += max(0, b[x][y] - (bnoise+base));
