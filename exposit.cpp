@@ -231,7 +231,7 @@ void adddcrawmatch (string s) {
     }
 }
 
-string dcraw_command = "dcraw -c -4";
+string dcraw_command = "dcraw -t 0 -c -4";
 
 ImageRGBL *dcraw_treat (const char * fname) {
     string command(dcraw_command);
