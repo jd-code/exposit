@@ -62,6 +62,8 @@ class ImageRGBL {
 	int **r, **g, **b, **l, **msk;
 	bool isallocated;
 	bool histog_valid;
+	int histmask;
+	int histshift;
 	int maxr, minr,
 	    maxg, ming,
 	    maxb, minb,

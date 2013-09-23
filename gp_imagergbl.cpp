@@ -205,6 +205,8 @@ bool ImageRGBL::chrono = false;
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
+	  histmask ((-1L) << 4),
+	  histshift ((1L) << 4),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {   
@@ -216,6 +218,8 @@ bool ImageRGBL::chrono = false;
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
+	  histmask ((-1L) << 4),
+	  histshift ((1L) << 4),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {
@@ -235,6 +239,8 @@ bool ImageRGBL::chrono = false;
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
+	  histmask ((-1L) << 4),
+	  histshift ((1L) << 4),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {
@@ -874,8 +880,8 @@ cerr << "there" << endl;
 
 	int predx = 0, predy = height;
 
-	Draw_line (xoff+((base+noise)*width)/Max,      yoff,  xoff+((base+noise)*width)/Max,      yoff+height-1, cline);
-	Draw_line (xoff+((base+noise+gain)*width)/Max, yoff,  xoff+((base+noise+gain)*width)/Max, yoff+height-1, cline);
+	Draw_line (xoff+((base+noise)*(long)width)/Max,      yoff,  xoff+((base+noise)*(long)width)/Max,      yoff+height-1, cline);
+	Draw_line (xoff+((base+noise+gain)*(long)width)/Max, yoff,  xoff+((base+noise+gain)*(long)width)/Max, yoff+height-1, cline);
 	for (mi=hs.begin() ; (mi!=hs.end() && (mi->first < base+noise+gain)) ; mi++);
 	if (mi!=hs.end()) {
 	    stringstream s;
@@ -893,7 +899,7 @@ cerr << "there" << endl;
 	}
 
 	for (mi=hs.begin() ; mi!=hs.end() ; mi++) {
-	    nx = (mi->first * width)/Max;
+	    nx = (mi->first * (long)width)/Max;
 	    int hh = (int)(((1+log(mi->second)) * height)/vmax);
 	    hh = (hh > height) ? height : hh;
 	    ny = height - hh;
@@ -901,12 +907,12 @@ cerr << "there" << endl;
 	    predx = nx, predy = ny;
 
 	    mj = mi; mj++;
-	    if ((mj != hs.end()) && ((mj->first - mi->first) > 0x100)) {	// JDJDJDJD this value has to be tunable somewhere !!
+	    if ((mj != hs.end()) && ((mj->first - mi->first) > histshift)) {	// JDJDJDJD this value has to be tunable somewhere !!
 		ny = height;							//          it must match the binary mask used at histograms reduction
 		Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
 		predx = nx, predy = ny;
 
-		nx = (mj->first * width)/Max;
+		nx = (mj->first * (long)width)/Max;
 		Draw_line (xoff+predx, yoff+predy, xoff+nx, yoff+ny, color);
 		predx = nx, predy = ny;
 	    }
@@ -1526,37 +1532,41 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 //	}
 //    }
 
+    void fusionnehist (map<int,int> &h, int histmask) {
+	map<int,int> m;
+	map<int,int>::iterator mi;
+
+	for (mi=h.begin() ; mi!=h.end() ; mi++) {
+	    m[mi->first & histmask] += mi->second;
+	}
+
+	h.swap (m);
+    }
+
     void ImageRGBL::fasthistogramme (int step, map<int,int> &hr, map<int,int> &hg, map<int,int> &hb, map<int,int> &hl) {
 	int x, y;
 	hr.erase(hr.begin(), hr.end());
 	hg.erase(hg.begin(), hg.end());
 	hb.erase(hb.begin(), hb.end());
 	hl.erase(hl.begin(), hl.end());
-	if (msk == NULL) {
-if (debug) cout << "fasthistogramme " << w << "x" << h << " sans curmsk" << endl;
-	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
-//		hr[r[x][y]] ++;
-//		hg[g[x][y]] ++;
-//		hb[b[x][y]] ++;
-//		hl[l[x][y]] ++;
-		hr[r[x][y]&0xFFFFFFF0] ++;
-		hg[g[x][y]&0xFFFFFFF0] ++;
-		hb[b[x][y]&0xFFFFFFF0] ++;
-		hl[l[x][y]&0xFFFFFFF0] ++;
-	    }
-	} else {
 if (debug) cout << "fasthistogramme " << w << "x" << h << " avec curmsk = " << curmsk << endl;
-	    for (x=0 ; x<w ; x+=step) for (y=0 ; y<h ; y+=step) {
-		if (msk[x][y] == curmsk) {
-//		    hr[r[x][y]] ++;
-//		    hg[g[x][y]] ++;
-//		    hb[b[x][y]] ++;
-//		    hl[l[x][y]] ++;
-		    hr[r[x][y]&0xFFFFFFF0] ++;
-		    hg[g[x][y]&0xFFFFFFF0] ++;
-		    hb[b[x][y]&0xFFFFFFF0] ++;
-		    hl[l[x][y]&0xFFFFFFF0] ++;
+	for (x=0 ; x<w ; x+=step) {
+	    for (y=0 ; y<h ; y+=step) {
+		if ((msk!=NULL) && (msk[x][y] == curmsk)) {
+//		    hr[r[x][y]&0xFFFFFFF0] ++;
+		    hr[ r[x][y] & histmask ]  ++;
+		    hg[ g[x][y] & histmask ]  ++;
+		    hb[ b[x][y] & histmask ]  ++;
+		    hl[ l[x][y] & histmask ]  ++;
 		}
+	    }
+	    if ((hr.size() > 1024) || (hg.size() > 1024) || (hb.size() > 1024) || (hl.size() > 1024)) { // some histograms are too big
+		histmask <<= 1;
+		histshift <<= 1;
+		fusionnehist (hr, histmask);
+		fusionnehist (hg, histmask);
+		fusionnehist (hb, histmask);
+		fusionnehist (hl, histmask);
 	    }
 	}
 if (debug) cerr << "hr.size() = " << hr.size() << endl
