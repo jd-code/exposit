@@ -49,13 +49,9 @@ oldvimtest: exposit show testchunkio
 	./testchunkio
 
 vimtest: exposit testchunkio
-<<<<<<< HEAD
 	# ./testchunkio
-	export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
-=======
-	./testchunkio
-	# ./exposit -readxpo=m42+flame.xpo
->>>>>>> 2eb4e8a2df961e66b1a51be2ffcfd4479b90e22c
+	./exposit -readxpo=m42+flame.xpo
+	# export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
 
 
 testchunkio: testchunkio.o chunkio.o
