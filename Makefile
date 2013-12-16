@@ -1,7 +1,10 @@
 
-
+# this should match most linuces
 COMPFLAGS=-O4 -g
-#COMPFLAGS=-g
+
+# on macosX maverick O4 prevent debugging (?) and libstdc++ is needed for piping extensions
+#COMPFLAGS=-g -stdlib=libstdc++
+
 
 # for macports ...
 ADDINCLUDES=-I/opt/local/include
@@ -49,8 +52,8 @@ oldvimtest: exposit show testchunkio
 	./testchunkio
 
 vimtest: exposit testchunkio
-	./testchunkio
-	# ./exposit -readxpo=m42+flame.xpo
+	# ./testchunkio
+	export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
 
 
 testchunkio: testchunkio.o chunkio.o
