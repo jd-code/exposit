@@ -4,10 +4,7 @@ COMPFLAGS=-O4 -g
 
 # on macosX maverick O4 prevent debugging (?) and libstdc++ is needed for piping extensions
 #COMPFLAGS=-g -stdlib=libstdc++
-
-
-# for macports ...
-ADDINCLUDES=-I/opt/local/include
+#ADDINCLUDES=-I/opt/local/include
 
 CFLAGS=${COMPFLAGS} ${ADDINCLUDES}
 
@@ -52,8 +49,13 @@ oldvimtest: exposit show testchunkio
 	./testchunkio
 
 vimtest: exposit testchunkio
+<<<<<<< HEAD
 	# ./testchunkio
 	export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
+=======
+	./testchunkio
+	# ./exposit -readxpo=m42+flame.xpo
+>>>>>>> 2eb4e8a2df961e66b1a51be2ffcfd4479b90e22c
 
 
 testchunkio: testchunkio.o chunkio.o
