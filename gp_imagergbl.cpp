@@ -1549,10 +1549,10 @@ cout << " savecorrected: " << rnoise << " " << gnoise << " " << bnoise << endl;
 	hg.erase(hg.begin(), hg.end());
 	hb.erase(hb.begin(), hb.end());
 	hl.erase(hl.begin(), hl.end());
-if (debug) cout << "fasthistogramme " << w << "x" << h << " avec curmsk = " << curmsk << endl;
+if (debug) cout << "fasthistogramme " << w << "x" << h << " step=" << step << " histmask=" << setbase(16) << histmask << setbase(10) << "  avec curmsk = " << curmsk << endl;
 	for (x=0 ; x<w ; x+=step) {
 	    for (y=0 ; y<h ; y+=step) {
-		if ((msk!=NULL) && (msk[x][y] == curmsk)) {
+		if ((msk == NULL) || ((msk!=NULL) && (msk[x][y] == curmsk))) {
 //		    hr[r[x][y]&0xFFFFFFF0] ++;
 		    hr[ r[x][y] & histmask ]  ++;
 		    hg[ g[x][y] & histmask ]  ++;
@@ -1563,6 +1563,11 @@ if (debug) cout << "fasthistogramme " << w << "x" << h << " avec curmsk = " << c
 	    if ((hr.size() > 1024) || (hg.size() > 1024) || (hb.size() > 1024) || (hl.size() > 1024)) { // some histograms are too big
 		histmask <<= 1;
 		histshift <<= 1;
+if (debug) cerr << "hr.size() = " << hr.size() << endl
+     << "hg.size() = " << hg.size() << endl
+     << "hb.size() = " << hb.size() << endl
+     << "hl.size() = " << hl.size() << endl;
+if (debug) cout << "fasthistogramme augmentation de histmask=" << setbase(16) << histmask << setbase(10) << " et histshift=" << histshift << endl;
 		fusionnehist (hr, histmask);
 		fusionnehist (hg, histmask);
 		fusionnehist (hb, histmask);
