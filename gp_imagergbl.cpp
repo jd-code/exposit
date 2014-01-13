@@ -205,8 +205,8 @@ bool ImageRGBL::chrono = false;
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
-	  histmask ((-1L) << 4),
-	  histshift ((1L) << 4),
+	  histmask ((-1L) << 1),
+	  histshift ((1L) << 1),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {   
@@ -218,8 +218,8 @@ bool ImageRGBL::chrono = false;
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
-	  histmask ((-1L) << 4),
-	  histshift ((1L) << 4),
+	  histmask ((-1L) << 1),
+	  histshift ((1L) << 1),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {
@@ -239,8 +239,8 @@ bool ImageRGBL::chrono = false;
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
 	  isallocated(false),
 	  histog_valid(false),
-	  histmask ((-1L) << 4),
-	  histshift ((1L) << 4),
+	  histmask ((-1L) << 1),
+	  histshift ((1L) << 1),
 	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
 	  curmsk (0),  Max(0)
     {
