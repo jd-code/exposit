@@ -29,6 +29,8 @@
 
 #include <map>
 
+#include <fitsio.h>
+
 #include "starsmap.h"
 
 namespace exposit {
@@ -80,6 +82,8 @@ static bool chrono;
 	ImageRGBL (int w, int h);
 
 	ImageRGBL (SDL_Surface & surface, int lcrop = 0, int rcrop = 0, int tcrop = 0, int bcrop = 0);
+
+	ImageRGBL (fitsfile * fptr, int lcrop = 0, int rcrop = 0, int tcrop = 0, int bcrop = 0);
 
 	ImageRGBL (const char * fname); // loading some xpo file
 

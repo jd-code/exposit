@@ -232,6 +232,125 @@ bool ImageRGBL::chrono = false;
 	setluminance();
     }
 
+    ImageRGBL::ImageRGBL (fitsfile * fptr, int lcrop, int rcrop, int tcrop, int bcrop)
+	: w(0), h(0), maxlev(0),
+	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
+	  isallocated(false),
+	  histog_valid(false),
+	  histmask ((-1L) << 1),
+	  histshift ((1L) << 1),
+	  maxr(-1), minr(-1), maxg(-1), ming(-1), maxb(-1), minb(-1), maxl(-1), minl(-1),
+	  curmsk (0),  Max(0)
+    {
+	int status = 0;
+	int bitpix = 0;
+	int naxis = 0;
+	long naxes [20];
+	fits_get_img_param(fptr, 20, &bitpix, &naxis, &naxes[0], &status);
+	if (status != 0) {
+	    {	char s[100];
+		int r = 0;
+		cerr << "ImageRGBL::fits " ;
+		do {
+		    r = fits_read_errmsg (s);
+		    // if (r != 0)
+			cerr << s;
+		} while (r != 0);
+		cerr << endl;
+	    }
+//JDJDJDJD mettre un paquet de trace ici je suppose
+	    return;
+	}
+	{   // displaying fits infos :
+	    int i;
+	    for (i=0 ; (i<naxis) && (i<20) ; i++) {
+		if (i!=0) cout << 'x';
+		cout << naxes[i] ;
+	    }
+	    cout << ' ';
+	    switch (bitpix) {
+		case   8: maxlev = 256;		cout << "unsigned bytes" << endl; break;
+		case  16: maxlev = 65536;	cout << "unsigned 16bits" << endl; break;
+		case  32: maxlev = 65536*256;   cout << "unsigned 32bits" << endl; break;
+		case -32: maxlev = 65536*256;   cout << "32bits floats" << endl; break;
+		case -64: maxlev = 65536*256;   cout << "64bits floats" << endl; break;
+		default : maxlev = 256;		cout << "unknown type : " << bitpix << endl; break;
+	    }
+	}
+	if (naxis < 2) {
+	    cerr << "ImageRGBL::fits too few axis in the file" << endl;
+	    return;
+	}
+//	if (naxis == 2) // monochrome image ?
+
+	w = naxes[0];
+	h = naxes[1];
+
+	allocateall ();
+	if (!isallocated) {
+	    cerr << "ImageRGBL::fits could not alloocate for " << w << "x" << h << " !" << endl;
+	    return;
+	}
+
+	int y;
+	long fpixel[20];
+	int anynul;
+	for (int i=0 ; i<20 ; i++) { fpixel[i] = 1; }
+	
+	int *row;
+	row = (int *) malloc (w * sizeof(int));
+	if (row == NULL) {  
+	    cerr << "ImageRGBL::fits could not allocate intermediate int[" << w << "] row !" << endl;
+	    return;
+	}
+
+	if (naxis == 2) { // monochrome
+	    for (y=0; y<h ; y++) {
+		fpixel[1] = y+1;
+		status = 0;
+		anynul = 0;
+
+
+		if (0 != fits_read_pix(fptr, TINT, &fpixel[0], w, NULL, row, &anynul, &status)) {
+		    cerr << "ImageRGBL::fits error at reading row y=" << y << endl;
+		    break;
+		}
+		int x;
+		for (x=0 ; x<w ; x++) {
+		    int v = row[x];
+		    r[x][y] = v,
+		    g[x][y] = v,
+		    b[x][y] = v;
+		}
+	    }
+	} else {
+	    for (y=0; y<h ; y++) {
+		fpixel[1] = y+1; fpixel[2] = 1; status = 0; anynul = 0;
+		if (0 != fits_read_pix(fptr, TINT, &fpixel[0], w, NULL, row, &anynul, &status)) {
+		    cerr << "ImageRGBL::fits error at reading row y=" << y << endl; break;
+		}
+		for (int x=0 ; x<w ; x++) r[x][y] = row[x];
+	    }
+	    for (y=0; y<h ; y++) {
+		fpixel[1] = y+1; fpixel[2] = 2; status = 0; anynul = 0;
+		if (0 != fits_read_pix(fptr, TINT, &fpixel[0], w, NULL, row, &anynul, &status)) {
+		    cerr << "ImageRGBL::fits error at reading row y=" << y << endl; break;
+		}
+		for (int x=0 ; x<w ; x++) g[x][y] = row[x];
+	    }
+	    for (y=0; y<h ; y++) {
+		fpixel[1] = y+1; fpixel[2] = 3; status = 0; anynul = 0;
+		if (0 != fits_read_pix(fptr, TINT, &fpixel[0], w, NULL, row, &anynul, &status)) {
+		    cerr << "ImageRGBL::fits error at reading row y=" << y << endl; break;
+		}
+		for (int x=0 ; x<w ; x++) b[x][y] = row[x];
+	    }
+	    
+	}
+	free (row);
+	setluminance();
+    }
+
 #define TAGADA
 #ifdef TAGADA
     ImageRGBL::ImageRGBL (const char * fname) :
@@ -248,15 +367,15 @@ static bool debugreadxpo = true;
 	ifchunk in(fname);
 	if (!in) {
 	    int e = errno;
-	    cerr << "ImageRGBL::save_xpo : could not open " << fname << " : " << strerror(e) << endl;
+	    cerr << "ImageRGBL::load_xpo : could not open " << fname << " : " << strerror(e) << endl;
 	    return; // JDJDJDJD is there a "good-for-use" mark to be set somewhere ?
 	}
 	int mark;
 	if (!in.readLONG (mark)) {
-	    int e = errno; cerr << "ImageRGBL::save_xpo : error at reading tagmark in " << fname << " : " << strerror(e) << endl; return;
+	    int e = errno; cerr << "ImageRGBL::load_xpo : error at reading tagmark in " << fname << " : " << strerror(e) << endl; return;
 	}
 	if (mark != 0x4f505889) {
-	    cerr << "ImageRGBL::read_xpo " << fname << " unrecognized tagmark : " << strchunk (mark) << endl;
+	    cerr << "ImageRGBL::load_xpo " << fname << " unrecognized tagmark : " << strchunk (mark) << endl;
 	    return;
 	}
 	int chunk;
@@ -2008,13 +2127,17 @@ static bool initialise = true;
 	chrono_specularity.stop(); if (chrono) cout << chrono_specularity << endl;
 
 	ios::fmtflags state = cout.flags();
-	cout << fixed << "av_ratio = " << av_ratio/n << endl;
+	if (n != 0)
+	    cout << fixed << "av_ratio = " << av_ratio/n << endl;
+	else
+	    cout << "could not study specularity" << endl;
 	cout.flags(state);
     }
 
     int ImageRGBL::conic_sum (int x, int y) {
 static    bool conic_pond_init = true;
 #define CONIC_S 17
+#define CONIC_S 32
 #define CONIC_S2 8
 static    int conic_pond [CONIC_S][CONIC_S];
 
@@ -2047,6 +2170,8 @@ cerr << "... done." << endl;
     }
 
 
+#define M81ITELESCOPET3
+
 #ifdef ORIGINALSETTINGS
 #   define SUBSBASE 4
 #   define NBMAXSPOTS 2000
@@ -2059,9 +2184,15 @@ cerr << "... done." << endl;
 #   	define NBMAXSPOTS 4000
 #   	define BRIGHTLISTDIVISOR 20
 #   else
-#       define SUBSBASE 8
-#       define NBMAXSPOTS 2000
+#     ifdef M81ITELESCOPET3
+#       define SUBSBASE 4
+#       define NBMAXSPOTS 4000
 #       define BRIGHTLISTDIVISOR 20
+#     else
+#       define SUBSBASE 8
+#       define NBMAXSPOTS 4000
+#       define BRIGHTLISTDIVISOR 20
+#     endif
 #   endif
 #endif
 

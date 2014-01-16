@@ -49,7 +49,7 @@ oldvimtest: exposit show testchunkio
 	./testchunkio
 
 vimtest: exposit testchunkio
-	# ./testchunkio
+	./testchunkio
 	./exposit -readxpo=m42+flame.xpo
 	# export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
 
@@ -58,7 +58,7 @@ testchunkio: testchunkio.o chunkio.o
 	g++ -Wall ${CFLAGS} -o testchunkio testchunkio.o chunkio.o
 
 exposit: simplechrono.o chunkio.o draw.o exposit.o jeuchar.o graphutils.o vstar.o starsmap.o gp_imagergbl.o interact.o 
-	g++ -Wall ${CFLAGS} -o exposit exposit.o chunkio.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image -lpng
+	g++ -Wall ${CFLAGS} -o exposit exposit.o chunkio.o gp_imagergbl.o starsmap.o vstar.o simplechrono.o draw.o jeuchar.o graphutils.o interact.o `sdl-config --cflags --libs` -lSDL_image -lpng -lcfitsio
 
 interact.o: interact.cpp simplechrono.h
 	g++ -Wall ${CFLAGS} -c interact.cpp `sdl-config --cflags`

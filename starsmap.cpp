@@ -291,6 +291,15 @@ namespace exposit {
 		a2 =  sin(rothint),
 		b2 =  cos(rothint);
 
+	if (ref_starmap.empty()) {
+	    cerr << "StarsMap::find_match ref_starmap is empty !" << endl;
+	    return 0;
+	}
+	if (me.empty()) {
+	    cerr << "StarsMap::find_match I'm empty !" << endl;
+	    return 0;
+	}
+
 	for (li=me.lower_bound(me.rbegin()->first/2) ; li!=me.end() ; li++) {
 //		multimap<int,VStar*> alikes;
 	    if (li->second.d0 != 0.0) {

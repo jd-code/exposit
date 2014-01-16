@@ -147,7 +147,7 @@ extern bool doublesize;
 extern StarsMap empty, &ref_starmap;
 
 ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop);
-int try_add_pic (const char * fname);
+int try_add_pic (const char * fname, int rothint);
 
 int simplenanosleep (int ms);
 // ... ---------------------
@@ -720,7 +720,7 @@ cout << "reference star map : " << ref_starmap.size () << " stars." << endl;
 			}
 		    }
 
-		    if ((ref_image != NULL) && (try_add_pic (mi->first.c_str()) == 0)) {
+		    if ((ref_image != NULL) && (try_add_pic (mi->first.c_str(), 0) == 0)) {
 			nbimage ++;
 			redrawzoom = true;
 			redrawsum = true;

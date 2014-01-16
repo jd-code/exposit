@@ -263,6 +263,38 @@ ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int 
     }
     {	string s(fname);
 	size_t p = s.find_last_of ('.');
+	bool attemptfits = false;
+	if (p != string::npos) {
+cerr << "yoliiiiii" << endl;
+	    string se = s.substr(p+1);
+	    if ((p>0) && ((se == "gz") || (se == "GZ") || (se == "zip") || (se == "gzip")) ) {
+cerr << "yoleeeeee" << endl;
+		size_t q = s.find_last_of ('.', p-1);
+		if (q != string::npos) {
+cerr << "yolieeeeee <" << s.substr(q+1,p-q-1) << ">" << endl;
+		    if (s.substr(q+1,p-q-1) == "fit")
+			attemptfits = true;
+		}
+	    } else if (s.substr(p+1) == "fit") {
+		attemptfits = true;
+	    }
+	}
+	if (attemptfits) {
+	    fitsfile * fptr;
+	    int status = 0;
+	    fits_open_file(&fptr, fname, READONLY, &status);
+	    if (status != 0) {
+		cerr << "load_image: could not open fit file " << fname << endl;
+		return NULL;
+	    }
+	    ImageRGBL * pimage = new ImageRGBL(fptr);
+	    fits_close_file (fptr, &status);
+cerr << pimage->w << "x" << pimage->h << endl;
+	    return pimage;
+	}
+    }
+    {	string s(fname);
+	size_t p = s.find_last_of ('.');
 	if (p !=string::npos) {
 	    if (matchdcrawfiles.find(s.substr(p+1)) != matchdcrawfiles.end()) {
 		return dcraw_treat (fname);
@@ -314,7 +346,7 @@ int yzoom = -1;
 int wzoom = -1;
 int hzoom = -1;
 
-int try_add_pic (const char * fname) {
+int try_add_pic (const char * fname, int rothint) {
     ImageRGBL *image = load_image (fname, lcrop, rcrop, tcrop, bcrop);
 
     int maxdt = 20;
@@ -353,7 +385,7 @@ int try_add_pic (const char * fname) {
 
 	{
 	    double da0, da0_b;
-	    diff = starmap->find_match (ref_starmap, 0.0, dx, dy, da0, da0_b);
+	    diff = starmap->find_match (ref_starmap, M_PI*((double)rothint)/180.0, dx, dy, da0, da0_b);
 
 	    cout << " try_add_pic : dv vector-choosed(0) = d[" << dx << "," << dy
 		 << "] + rot[ " << setw(6) << fixed << setprecision(1) << radian_to_nicedegrees(da0)
@@ -524,6 +556,8 @@ cerr << "sizeof(int) = " << sizeof(int) << endl << endl;
 
     int i;
     int nbimage = 0;
+    int rothint = 0;
+
     for (i=1 ; i<nb ; i++) {
 	if (cmde[i][0] != '-') {
 	    if (ref_image == NULL) {
@@ -563,7 +597,7 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		}
 	    }
 
-	    if (try_add_pic (cmde[i]) == 0) {
+	    if (try_add_pic (cmde[i], rothint) == 0) {
 		nbimage ++;
 		if (screen != NULL) {
 		    if (!interact (nbimage, interactfly)) {
@@ -572,6 +606,8 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		    }
 		}
 	    }
+	} else if (strncmp ("-rot=", cmde[i], 5) == 0) {
+	    rothint = atoi (cmde[i]+5);
 	} else if (strncmp ("-readxpo=", cmde[i], 9) == 0) {
 cerr << "loading " << cmde[i]+9 << " ..." << endl;
 	    sum_image = new ImageRGBL (cmde[i]+9);
@@ -589,11 +625,11 @@ cerr << "loading " << cmde[i]+9 << " ..." << endl;
 	} else if (strncmp ("-hdrtest", cmde[i], 8) == 0) {
 	    // JDJDJDJD  this is about trying to make some HDR ?????
 	    cerr << "entering gauss" << endl;
-	    ImageRGBL *gauss = sum_image->gaussfaster (100, 257 * sum_image->curmsk);
+	    ImageRGBL *gauss = sum_image->gaussfaster (35, 257 * sum_image->curmsk);
 	    // ImageRGBL *gauss = sum_image->gauss (30, 257 * sum_image->curmsk);
 	    // sum_image = gauss;
 	    cerr << "entering silly" << endl;
-	    ImageRGBL *silly = sum_image->silly (*gauss, 1.7, 1.0);
+	    ImageRGBL *silly = sum_image->silly (*gauss, 6.0, 1.0);
 // int mini = silly->shiftnonegative();
 // cerr << "shiftnonegative = " << mini << endl;
 	    silly->fasthistogramme (5);
@@ -813,6 +849,7 @@ int oldmain (int nb, char ** cmde) {
 
     int i;
     int nbimage = 0;
+    int rothint = 0;
     for (i=1 ; i<nb ; i++) {
 	if (cmde[i][0] != '-') {
 	    if (ref_image == NULL) {
@@ -854,7 +891,7 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		}
 	    }
 
-	    if (try_add_pic (cmde[i]) == 0) {
+	    if (try_add_pic (cmde[i], rothint) == 0) {
 		nbimage ++;
 		if (screen != NULL) {
 		    if (!interact (nbimage, interactfly)) {
