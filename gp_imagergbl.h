@@ -94,6 +94,8 @@ static bool chrono;
 	void setluminance (void);
 	void setmax (void);
 
+        void un_bayer (void);	// uses luminance in order to build a rgb image
+
 	ImageRGBL *rotate (double ang);
 	ImageRGBL *doublescale (void);
 

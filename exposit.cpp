@@ -855,7 +855,6 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 	}
     }
 
-cerr << "icicicicicicicicici" << endl;
     
 
     interact (nbimage, true);
@@ -1028,7 +1027,6 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 	}
     }
 
-cerr << "ici" << endl;
     interact (nbimage, true);
 
 //    sum_image->minimize ();

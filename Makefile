@@ -50,6 +50,8 @@ oldvimtest: exposit show testchunkio
 
 vimtest: exposit testchunkio
 	./testchunkio
+	./exposit -finetune ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w* ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w*
+
 	./exposit -readxpo=m42+flame.xpo
 	# export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
 

@@ -8,10 +8,10 @@ todo
     o better rendering of histograms
 
     o individual colors cut gain gamma ratios settings ?
-    o export as a layered pic ?
+  x o [done] export as a layered pic ?
     o read EXIF expositions / focal / values ?
 
-  x o aggregate several falloff reference files for better interpolation ?  
+  x o [done] aggregate several falloff reference files for better interpolation ?  
     o artificially white the falloff ref and apply local color drifts for sensors stains ?
     o automatically match falloff according to exif values ?
 

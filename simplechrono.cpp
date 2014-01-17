@@ -97,7 +97,6 @@ namespace exposit {
 
     ChronoList::~ChronoList (void) {
 	list<Chrono *>::iterator li;
-cerr << "ici" << endl;
 	for (li=this->begin() ; li!=this->end() ; li++)
 	    (*li)->registered = false;
     }

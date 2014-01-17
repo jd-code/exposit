@@ -232,6 +232,40 @@ bool ImageRGBL::chrono = false;
 	setluminance();
     }
 
+    void ImageRGBL::un_bayer (void) {	// uses luminance in order to build a rgb image
+	int x, y;
+	for (y=0 ; y<h ; y++) for (x=0 ; x<w ; x++) l[x][y] = r[x][y];
+
+	for (y=1 ; y<h-1 ; y++) for (x=1 ; x<w-1 ; x++) {
+	    int xp = x-1, xn = x+1,
+		yp = y-1, yn = y+1;
+
+	    switch ((x & 1) + ((y & 1) << 1)) {
+		case 0:
+		    r[x][y] = ( l[xn][yn] + l[xn][yp] + l[xp][yn] + l[xp][yp]  ) >> 1; // >> 2;
+		    g[x][y] = ( l[xn][y] + l[xp][y] + l[x][yn] + l[x][yp]      ) >> 1; // >> 2;
+		    b[x][y] = ( l[x][y]                                        ) << 1; //;
+		    break;
+		case 1:
+		    r[x][y] = ( l[x][yp] + l[x][yn]                            )     ; // >> 1;
+		    g[x][y] = ( l[x][y]                                        ) << 1; //;
+		    b[x][y] = ( l[xp][y] + l[xn][y]                            )     ; // >> 1;
+		    break;
+		case 2:
+		    r[x][y] = ( l[xp][y] + l[xn][y]                            )     ; // >> 1;
+		    g[x][y] = ( l[x][y]                                        ) << 1; //;
+		    b[x][y] = ( l[x][yp] + l[x][yn]                            )     ; // >> 1;
+		    break;
+		case 3:
+		    r[x][y] = ( l[x][y]                                        ) << 1; //;
+		    g[x][y] = ( l[xn][y] + l[xp][y] + l[x][yn] + l[x][yp]      ) >> 1; // >> 2;
+		    b[x][y] = ( l[xn][yn] + l[xn][yp] + l[xp][yn] + l[xp][yp]  ) >> 1; // >> 2;
+		    break;
+	    }
+	}
+	setluminance();
+    }
+
     ImageRGBL::ImageRGBL (fitsfile * fptr, int lcrop, int rcrop, int tcrop, int bcrop)
 	: w(0), h(0), maxlev(0),
 	  r(NULL), g(NULL), b(NULL), l(NULL), msk(NULL),
@@ -323,6 +357,7 @@ bool ImageRGBL::chrono = false;
 		    b[x][y] = v;
 		}
 	    }
+un_bayer ();	
 	} else {
 	    for (y=0; y<h ; y++) {
 		fpixel[1] = y+1; fpixel[2] = 1; status = 0; anynul = 0;
@@ -2137,8 +2172,9 @@ static bool initialise = true;
     int ImageRGBL::conic_sum (int x, int y) {
 static    bool conic_pond_init = true;
 #define CONIC_S 17
-#define CONIC_S 32
 #define CONIC_S2 8
+#define CONIC_S 33
+#define CONIC_S2 16
 static    int conic_pond [CONIC_S][CONIC_S];
 
 	if (conic_pond_init) {
