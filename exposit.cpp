@@ -201,6 +201,39 @@ ImageRGBL *load_imageppm (const char * fname, int lcrop, int rcrop, int tcrop, i
     return load_imageppm (fin, fname, lcrop, rcrop, tcrop, bcrop);
 }
 
+class lowermapstringint : public map <string,int> {
+  public:
+    bool ispresent (const string &s) {
+	string t;
+	for (size_t i=0 ; i<s.size() ; i++) t += tolower (s[i]);
+	if (find(t) != end()) return true;
+	return false;
+    }
+    void insert (const string &s) {
+	string t;
+	for (size_t i=0 ; i<s.size() ; i++) t += tolower (s[i]);
+	(*this)[t] = 1;
+    }
+    void insert (const char *s) {
+	string t;
+	for (size_t i=0 ; s[i]!=0 ; i++) t += tolower (s[i]);
+	(*this)[t] = 1;
+    }
+};
+
+lowermapstringint gzippies;
+lowermapstringint fitsies;
+
+// sets an initial list of files handled with libcfitsio
+void init_fitsfile (void) {
+    gzippies.insert ("gz");
+    gzippies.insert ("zip");
+    gzippies.insert ("z");
+    fitsies.insert ("fit");
+    fitsies.insert ("fits");
+}
+
+
 map <string,int> matchdcrawfiles;
 
 // sets an initial list of files handled with dcraw
@@ -212,6 +245,7 @@ void init_dcrawfile (void) {
     int i;
     for (i=0 ; l[i] != NULL ; i++) 
 	matchdcrawfiles [l[i]] = 1;
+
 }
 
 void adddcrawmatch (string s) {
@@ -265,17 +299,15 @@ ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int 
 	size_t p = s.find_last_of ('.');
 	bool attemptfits = false;
 	if (p != string::npos) {
-cerr << "yoliiiiii" << endl;
 	    string se = s.substr(p+1);
-	    if ((p>0) && ((se == "gz") || (se == "GZ") || (se == "zip") || (se == "gzip")) ) {
-cerr << "yoleeeeee" << endl;
+	    if ((p>0) && gzippies.ispresent (s.substr(p+1))) {
 		size_t q = s.find_last_of ('.', p-1);
 		if (q != string::npos) {
-cerr << "yolieeeeee <" << s.substr(q+1,p-q-1) << ">" << endl;
-		    if (s.substr(q+1,p-q-1) == "fit")
+		    if (fitsies.ispresent (s.substr(q+1,p-q-1))) {
 			attemptfits = true;
+		    }
 		}
-	    } else if (s.substr(p+1) == "fit") {
+	    } else if ((s.substr(p+1) == "fit") || (s.substr(p+1) == "fits")){
 		attemptfits = true;
 	    }
 	}
@@ -289,7 +321,6 @@ cerr << "yolieeeeee <" << s.substr(q+1,p-q-1) << ">" << endl;
 	    }
 	    ImageRGBL * pimage = new ImageRGBL(fptr);
 	    fits_close_file (fptr, &status);
-cerr << pimage->w << "x" << pimage->h << endl;
 	    return pimage;
 	}
     }
@@ -553,6 +584,7 @@ cerr << "sizeof(int) = " << sizeof(int) << endl << endl;
     }
 
     init_dcrawfile (); // sets an initial list of files handled with dcraw
+    init_fitsfile (); // sets the initial list of fits file matches
 
     int i;
     int nbimage = 0;
