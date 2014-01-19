@@ -144,7 +144,9 @@ extern bool debug;
 
 extern bool doublesize;
 
-extern StarsMap empty, &ref_starmap;
+extern StarsMap empty, &ref_starmap, *last_starmap;
+extern double last_rot;
+extern int last_dx, last_dy;
 
 ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop);
 int try_add_pic (const char * fname, int rothint);
@@ -357,6 +359,19 @@ cout << "nbimage = " << nbimage << endl;
 	sum_image->render (*screen, 0, 0, screen->w/2, screen->h/2, base, gain, gamma);
 	sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain, gamma,
 				xzoom, yzoom, wzoom, hzoom);
+
+	ref_starmap.renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2,
+				xzoom, yzoom, wzoom, hzoom,
+				sum_image->w/2, sum_image->h/2,
+				0.0, 0, 0,
+				255,0,0);
+	if (last_starmap != NULL)
+	    last_starmap->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2,
+                                xzoom, yzoom, wzoom, hzoom,
+				sum_image->w/2, sum_image->h/2,
+				last_rot, last_dx, last_dy,
+				0,0,255);
+
 	SDL_Rect r;
 	r.x = screen->w/2;
 	r.y = 0;
@@ -621,6 +636,18 @@ cout << "nbimage = " << nbimage << endl;
 	    if (redrawzoom) {
 		sum_image->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2, base, gain, gamma,
 					xzoom, yzoom, wzoom, hzoom);
+		ref_starmap.renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2,
+					xzoom, yzoom, wzoom, hzoom, 
+					sum_image->w/2, sum_image->h/2,
+					0.0, 0, 0,
+					255,0,0);
+		if (last_starmap != NULL)
+		    last_starmap->renderzoom (*screen, 0, screen->h/2, screen->w/2, screen->h/2,
+					xzoom, yzoom, wzoom, hzoom,
+					sum_image->w/2, sum_image->h/2,
+					last_rot, last_dx, last_dy,
+					0,0,255);
+
 		if (zoomactive) {
 		    Uint32 color = SDL_MapRGB(screen->format, 192, 192, 255);
 		    string text ("zoom adjust");

@@ -50,7 +50,7 @@ oldvimtest: exposit show testchunkio
 
 vimtest: exposit testchunkio
 	./testchunkio
-	./exposit -finetune ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w* ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w*
+	./exposit ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w* ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w*
 
 	./exposit -readxpo=m42+flame.xpo
 	# export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
@@ -78,7 +78,7 @@ testchunkio.o: testchunkio.cpp
 	g++ -Wall ${CFLAGS} -c testchunkio.cpp
 
 starsmap.o: starsmap.cpp starsmap.h
-	g++ -Wall ${CFLAGS} -c starsmap.cpp
+	g++ -Wall ${CFLAGS} -c starsmap.cpp `sdl-config --cflags`
 
 simplechrono.o: simplechrono.cpp simplechrono.h
 	g++ -Wall ${CFLAGS} -c simplechrono.cpp

@@ -27,9 +27,14 @@
 
 #include <map>
 
+#include "draw.h"
+
 #include "vstar.h"
 
 namespace exposit {
+
+    // JDJDJDJD this one is uggllily added here !!! some header cleanup is needed !
+    void putpixel(SDL_Surface &surface, int x, int y, int r, int g, int b);
 
     using namespace std;
 
@@ -47,6 +52,12 @@ namespace exposit {
 
 	    int find_match (StarsMap const &ref_starmap, double rothint, int &dx, int &dy, double &da0, double &da0_b);
 	    int find_tuned_match (StarsMap const &ref_starmap, double rothint, int &dx, int &dy, double &da0, double &da0_b);
+
+	    void renderzoom (SDL_Surface &surface, int xoff, int yoff, int width, int height,
+			    int xs, int ys, int ws, int hs,
+			    int xc, int yc,	// centre de rotation
+			    double rothint, int dx, int dy, // angle rot, decalage
+			    int r, int g, int b);
 
 static int debug;
 

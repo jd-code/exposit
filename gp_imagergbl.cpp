@@ -2173,8 +2173,9 @@ static bool initialise = true;
 static    bool conic_pond_init = true;
 #define CONIC_S 17
 #define CONIC_S2 8
-#define CONIC_S 33
-#define CONIC_S2 16
+#define CONIC_S2 8
+/// #define CONIC_S 33
+/// #define CONIC_S2 16
 static    int conic_pond [CONIC_S][CONIC_S];
 
 	if (conic_pond_init) {

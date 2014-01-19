@@ -354,6 +354,48 @@ cout << "  rep[" << mi->first << "] = " << mi->second << endl;
 	return 0;
     }
 
+    void rendercrux (SDL_Surface &surface, int xoff, int yoff, int width, int height, int x, int y, int size,
+			    int r, int g, int b) {
+	int i;
+
+	for (i=x-size ; i<=x+size ; i++) {
+	    if ((i>=xoff) && (i<xoff+width)) putpixel (surface, i, y, r,g,b);
+	}
+	for (i=y-size ; i<=y+size ; i++) {
+	    if ((i>=yoff) && (i<yoff+height)) putpixel (surface, x, i, r,g,b);
+	}
+    }
+
+    void StarsMap::renderzoom (SDL_Surface &surface, int xoff, int yoff, int width, int height,
+			    int xs, int ys, int ws, int hs,
+			    int xc, int yc,
+			    double rothint, int dx, int dy,
+			    int r, int g, int b) {
+	iterator mi;
+	int xx = xs+ws;
+	int yy = ys+hs;
+
+	double  a1 =  cos(rothint),
+		b1 = -sin(rothint),
+		a2 =  sin(rothint),
+		b2 =  cos(rothint);
+
+
+
+	for ( mi=begin() ; mi!=end() ; mi++ ) {
+	    int xo = mi->second.x;
+	    int yo = mi->second.y;
+
+	    int x = (xo-xc)*a1 + (yo-yc)*a2 + xc - dx;
+	    int y = (xo-xc)*b1 + (yo-yc)*b2 + yc - dy;
+
+	    if ((x>=xs) && (x<xx) && (y>=ys) && (y<yy)) {
+		rendercrux (surface, xoff, yoff, width, height,
+		    xoff+((x-xs)*width)/ws, yoff+((y-ys)*height)/hs, 4, r,g,b);
+	    }
+	}
+    }
+
     void StarsMap::setdebug (int d) {
 	debug = d;
     }

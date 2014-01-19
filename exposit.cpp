@@ -361,7 +361,9 @@ double radian_to_nicedegrees (double a) {
 // ----------------------------------------------------------------------------------------
 
     ImageRGBL *ref_image = NULL;
-    StarsMap empty, &ref_starmap = empty;
+    StarsMap empty, &ref_starmap = empty, *last_starmap = NULL;
+    double last_rot = 0.0;
+    int last_dx = 0, last_dy = 0;
     ImageRGBL *sum_image = NULL;
 
     ImageRGBL *falloff_ref = NULL;
@@ -532,7 +534,13 @@ cout << " try_add_pic : dv choosed = d[" << dx << "," << dy << "] = " << (100.0*
 	static Chrono chrono_cleanup("internal cleanup"); chrono_cleanup.start();
 	if (rot != NULL)
 	    delete (rot);
-	delete (starmap);
+
+	if (last_starmap != NULL)
+	    delete (last_starmap);
+	last_starmap = starmap;
+	last_rot = firstda0;
+	last_dx = dx;
+	last_dy = dy;
 	delete (image);
 	chrono_cleanup.stop(); if (chrono) cout << chrono_cleanup << endl;
 	return 0;
