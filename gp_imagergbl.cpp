@@ -357,7 +357,6 @@ bool ImageRGBL::chrono = false;
 		    b[x][y] = v;
 		}
 	    }
-un_bayer ();	
 	} else {
 	    for (y=0; y<h ; y++) {
 		fpixel[1] = y+1; fpixel[2] = 1; status = 0; anynul = 0;

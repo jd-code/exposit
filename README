@@ -40,6 +40,14 @@ Notes for installing / testing exposit
 			for handling raw files with esoteric extensions.
 			the default list only has "nef NEF cr2 CR2"
 
+	-load-unbayer
+			turns on un-bayer algorithms for subsequent images load.
+			computed luminance is used for extracting RGB from a
+			bayer-filtered mono pic.
+	
+	-load-normal	resumes normal behaviour, color or monochrome are treated
+			as-is (opposite of -load-unbayer)
+
 	-falloff=falloffpic
 			sets the fall-off reference pic. this pic is supposed
 			to contain ani, as optimal as it can, pic showing the
