@@ -232,6 +232,58 @@ bool ImageRGBL::chrono = false;
 	setluminance();
     }
 
+    void ImageRGBL::un_BandsArtifacts (void) {
+cerr << "ImageRGBL::un_BandsArtifacts" << endl;
+	int x, y;
+	int Ceil = 20;
+
+	for (y=0 ; y<h ; y++) for (x=0 ; x<w ; x++) l[x][y] = 0;
+
+	for (y=0 ; y<h-Ceil ; y++) {
+	    for (x=0 ; x<w ; x++) {
+	      if (l[x][y] == 0) {
+		int yy = y+1;
+		while (	    (yy<h)
+			&&  (abs (r[x][y] - r[x][yy]) <= 32)
+			&&  (abs (g[x][y] - g[x][yy]) <= 32)
+			&&  (abs (b[x][y] - b[x][yy]) <= 32)
+		      ) {
+		    yy++;
+		}
+		if (yy-y >= Ceil) {
+//cerr << "marking " << x << "," << y << " to " << x << "," << yy <<endl;
+
+		    int ym;
+		    for (ym=y ; ym<yy ; ym++) l[x][ym] = 1;
+		}
+	      }
+	    }
+	}
+
+	for (y=0 ; y<h ; y++) for (x=0 ; x<w ; x++) {
+	    int sr, sg, sb, n;
+	    switch (l[x][y]) {
+		case 1:	    // vertical trouble
+		    sr=0; sg=0; sb=0; n=0;
+		    if ((x>0) &&    (l[x-1][y] == 0))  sr+=r[x-1][y], sg+=g[x-1][y], sb+=b[x-1][y], n++;
+		    if ((x+1<w) &&  (l[x+1][y] == 0))  sr+=r[x+1][y], sg+=g[x+1][y], sb+=b[x+1][y], n++;
+		    if ((y>0) &&    (l[x][y-1] == 0))  sr+=r[x][y-1], sg+=g[x][y-1], sb+=b[x][y-1], n++;
+		    if ((y+1<h) &&  (l[x][y+1] == 0))  sr+=r[x][y+1], sg+=g[x][y+1], sb+=b[x][y+1], n++;
+		    if (n != 0) {
+			r[x][y] = sr/n;
+			g[x][y] = sg/n;
+			b[x][y] = sb/n;
+			l[x][y] = 0;
+		    } else
+			cerr << "ImageRGBL::un_BandsArtifacts " << x << "," << y << " could not be solved" << endl;
+		    break;
+		default:
+		    break;
+	    }
+	}
+	setluminance();
+    }
+
     void ImageRGBL::un_bayer (void) {	// uses luminance in order to build a rgb image
 	int x, y;
 	for (y=0 ; y<h ; y++) for (x=0 ; x<w ; x++) l[x][y] = r[x][y];

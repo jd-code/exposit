@@ -69,11 +69,12 @@ bool finetune = false;		// must-we perform fine tuning ?
 SDL_Surface* screen = NULL;
 
 typedef enum {
-    LI_NORMAL,
-    LI_UNBAYER
+    LI_NORMAL	= 0,
+    LI_UNBAYER	= 1,
+    LI_UNBAND	= 2
 } LoadImageMode;
 
-LoadImageMode load_image_mode = LI_NORMAL;
+int load_image_mode = LI_NORMAL;
 
 int lcrop = 0,
     rcrop = 0,
@@ -302,10 +303,8 @@ ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int 
 	if (strncmp (fname+strlen (fname)-3, "ppm", 3) == 0) {
 	    ImageRGBL * pimage = load_imageppm (fname, lcrop, rcrop, tcrop, bcrop);
 	    if (pimage == NULL) return NULL;
-	    switch (load_image_mode) {
-		case LI_NORMAL: break;
-		case LI_UNBAYER: pimage->un_bayer(); break;
-	    }
+	    if (load_image_mode & LI_UNBAND ) pimage->un_BandsArtifacts();
+	    if (load_image_mode & LI_UNBAYER) pimage->un_bayer();
 	    return pimage;
 	}
     }
@@ -336,10 +335,8 @@ ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int 
 	    ImageRGBL * pimage = new ImageRGBL(fptr);
 	    fits_close_file (fptr, &status);
 	    if (pimage == NULL) return NULL;
-	    switch (load_image_mode) {
-		case LI_NORMAL: break;
-		case LI_UNBAYER: pimage->un_bayer(); break;
-	    }
+	    if (load_image_mode & LI_UNBAND ) pimage->un_BandsArtifacts();
+	    if (load_image_mode & LI_UNBAYER) pimage->un_bayer();
 	    return pimage;
 	}
     }
@@ -349,10 +346,8 @@ ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int 
 	    if (matchdcrawfiles.find(s.substr(p+1)) != matchdcrawfiles.end()) {
 		ImageRGBL * pimage = dcraw_treat (fname);
 		if (pimage == NULL) return NULL;
-		switch (load_image_mode) {
-		    case LI_NORMAL: break;
-		    case LI_UNBAYER: pimage->un_bayer(); break;
-		}
+		if (load_image_mode & LI_UNBAND ) pimage->un_BandsArtifacts();
+		if (load_image_mode & LI_UNBAYER) pimage->un_bayer();
 		return pimage;
 	    }
 	}
@@ -372,10 +367,8 @@ ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int 
     ImageRGBL * pimage = new ImageRGBL(*surface, lcrop, rcrop, tcrop, bcrop);
     SDL_FreeSurface (surface);
     if (pimage == NULL) return NULL;
-    switch (load_image_mode) {
-	case LI_NORMAL: break;
-	case LI_UNBAYER: pimage->un_bayer(); break;
-    }
+    if (load_image_mode & LI_UNBAND ) pimage->un_BandsArtifacts();
+    if (load_image_mode & LI_UNBAYER) pimage->un_bayer();
     return pimage;
 }
 
@@ -676,8 +669,10 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 	    }
 	} else if (strncmp ("-rot=", cmde[i], 5) == 0) {
 	    rothint = atoi (cmde[i]+5);
+	} else if (strcmp ("-load-unband", cmde[i]) == 0) {
+	    load_image_mode |= LI_UNBAND;
 	} else if (strcmp ("-load-unbayer", cmde[i]) == 0) {
-	    load_image_mode = LI_UNBAYER;
+	    load_image_mode |= LI_UNBAYER;
 	} else if (strcmp ("-load-normal", cmde[i]) == 0) {
 	    load_image_mode = LI_NORMAL;
 	} else if (strncmp ("-readxpo=", cmde[i], 9) == 0) {
