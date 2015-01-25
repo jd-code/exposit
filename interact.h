@@ -25,7 +25,7 @@
 
 namespace exposit {
 
-    bool interact (int &nbimage, bool wemustloop, bool pollingdir = false);
+    bool interact (int &nbimage, bool wemustloop, bool no_align, bool pollingdir = false);
 
     extern bool interactfly;
 

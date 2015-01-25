@@ -1,10 +1,10 @@
 
 # this should match most linuces
-COMPFLAGS=-O4 -g
+#COMPFLAGS=-O4 -g
 
 # on macosX maverick O4 prevent debugging (?) and libstdc++ is needed for piping extensions
-#COMPFLAGS=-g -stdlib=libstdc++
-#ADDINCLUDES=-I/opt/local/include
+COMPFLAGS=-g -stdlib=libstdc++
+ADDINCLUDES=-I/opt/local/include
 
 CFLAGS=${COMPFLAGS} ${ADDINCLUDES}
 
@@ -49,11 +49,10 @@ oldvimtest: exposit show testchunkio
 	./testchunkio
 
 vimtest: exposit testchunkio
-	./testchunkio
-	./exposit -load-unbayer ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w* ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w*
-
-	./exposit -readxpo=m42+flame.xpo
+	# ./testchunkio
+	# ./exposit -load-unbayer ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w* ~/itelescope.net/t03/m81/20140114/calibrated-t3-jdpauget-m81-20140114-0*w*
 	# export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
+	export SDL_VIDEODRIVER=X11 ; ./exposit -readxpo=m42+flame.xpo
 
 
 testchunkio: testchunkio.o chunkio.o

@@ -97,6 +97,8 @@ static bool chrono;
         void un_bayer (void);	// uses luminance in order to build a rgb image
 	void un_BandsArtifacts (void);
 
+	void upsidedown (void);
+
 	ImageRGBL *rotate (double ang);
 	ImageRGBL *doublescale (void);
 

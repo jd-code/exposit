@@ -149,7 +149,7 @@ extern double last_rot;
 extern int last_dx, last_dy;
 
 ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop);
-int try_add_pic (const char * fname, int rothint);
+int try_add_pic (const char * fname, int rothint, bool no_align = false);
 
 int simplenanosleep (int ms);
 // ... ---------------------
@@ -285,7 +285,7 @@ void Dialog::installdialog (Dialog &d) {
 }
 
 
-bool interact (int &nbimage, bool wemustloop, bool pollingdir = false) {
+bool interact (int &nbimage, bool wemustloop, bool no_align, bool pollingdir = false) {
 
     if (globalchrono) Chrono::dump(cout);
 
@@ -466,6 +466,8 @@ cout << "nbimage = " << nbimage << endl;
 			    }
 			    break;
 
+			case SDLK_PLUS:
+			case SDLK_EQUALS:
 			case SDLK_PAGEUP:
 			    nwzoom = max(screen->w/2 , (int)(wzoom / sqrt(2.0)));
 			    nhzoom = (nwzoom*screen->h)/screen->w;
@@ -478,6 +480,7 @@ cout << "nbimage = " << nbimage << endl;
 			    redrawzoom = true;
 			    break;
 
+			case SDLK_MINUS:
 			case SDLK_PAGEDOWN:
 			    nwzoom = min(sum_image->w , (int)(wzoom * sqrt(2.0)));
 			    nhzoom = (nwzoom*screen->h)/screen->w;
@@ -747,7 +750,7 @@ cout << "reference star map : " << ref_starmap.size () << " stars." << endl;
 			}
 		    }
 
-		    if ((ref_image != NULL) && (try_add_pic (mi->first.c_str(), 0) == 0)) {
+		    if ((ref_image != NULL) && (try_add_pic (mi->first.c_str(), 0, no_align) == 0)) {
 			nbimage ++;
 			redrawzoom = true;
 			redrawsum = true;
