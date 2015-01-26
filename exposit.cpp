@@ -458,7 +458,7 @@ int try_add_pic (const char * fname, int rothint, bool no_align = false) {
 	}
 
 	int dx, dy;
-	long long diff;
+	long long diff = 0;
 	double firstda0 = 0.0;
 
 	static Chrono chrono_vectordiffing("vector diffing"); chrono_vectordiffing.start();
@@ -498,7 +498,7 @@ int try_add_pic (const char * fname, int rothint, bool no_align = false) {
 	chrono_vectordiffing.stop(); if (chrono) cout << chrono_vectordiffing << endl;
 
 	bool compareoldmethod = false;
-	if (compareoldmethod) {
+	if (!no_align && compareoldmethod) {
 		// int diff = image->find_match (*ref_image, image->w/3, image->h/3, width, width, dx, dy, maxdt);
 		dx = 0, dy = 0;
 		diff = image->find_match (*ref_image, xzoom, yzoom, wzoom, hzoom, dx, dy, maxdt);

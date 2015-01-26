@@ -185,15 +185,36 @@ static multimap <int, PixelCoord> scpec_mmap;
 
     int conic_sum (int x, int y);
 
+#define M81ITELESCOPET3
+
 #ifdef ORIGINALSETTINGS
 #   define SUBSBASE 4
 #   define NBMAXSPOTS 2000
 #   define BRIGHTLISTDIVISOR 10
 #else
-#   define SUBSBASE 8
-#   define NBMAXSPOTS 2000
-#   define BRIGHTLISTDIVISOR 20
+#   ifdef VIRGOSETTINGS
+	// JDJDJDJD pour m31 surexposee (was used for orion m42+flameneb first startrack)
+	//  virgo first attempt
+#   	define SUBSBASE 4
+#   	define NBMAXSPOTS 4000
+#   	define BRIGHTLISTDIVISOR 20
+#   else
+#     ifdef M81ITELESCOPET3
+#       define SUBSBASE 4
+#       define NBMAXSPOTS 4000
+#       define BRIGHTLISTDIVISOR 20
+#     else
+#       define SUBSBASE 8
+#       define NBMAXSPOTS 4000
+#       define BRIGHTLISTDIVISOR 20
+#     endif
+#   endif
 #endif
+
+// JDJDJDJD pour panstarrs 
+//#   define SUBSBASE 4
+//#   define NBMAXSPOTS 60
+//#   define BRIGHTLISTDIVISOR 20
 
     StarsMap * graphe_stars (void);
 
