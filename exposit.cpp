@@ -298,6 +298,28 @@ ImageRGBL *dcraw_treat (const char * fname) {
     return image;
 }
 
+void ImageRGBL::upsidedown (void) {
+cerr << "inverting" << endl;
+    int x, y;
+    for (y=0 ; y<h/2 ; y++) {
+	int yy = h-1-y;
+	for (x=0 ; x<w ; x++) {
+	    int rr = r[x][y];
+	    int gg = g[x][y];
+	    int bb = b[x][y];
+	    int ll = l[x][y];
+	    r[x][y] = r[x][yy];
+	    g[x][y] = g[x][yy];
+	    b[x][y] = b[x][yy];
+	    l[x][y] = l[x][yy];
+	    r[x][yy] = rr;
+	    g[x][yy] = gg;
+	    b[x][yy] = bb;
+	    l[x][yy] = ll;
+	}
+    }
+}
+
 ImageRGBL *load_image (const char * fname, int lcrop, int rcrop, int tcrop, int bcrop) {
     if (strlen (fname) > 3) {
 	if (strncmp (fname+strlen (fname)-3, "ppm", 3) == 0) {
@@ -400,7 +422,7 @@ int yzoom = -1;
 int wzoom = -1;
 int hzoom = -1;
 
-int try_add_pic (const char * fname, int rothint) {
+int try_add_pic (const char * fname, int rothint, bool no_align = false) {
     ImageRGBL *image = load_image (fname, lcrop, rcrop, tcrop, bcrop);
 
     int maxdt = 20;
@@ -423,13 +445,17 @@ int try_add_pic (const char * fname, int rothint) {
 	image->render (*screen, screen->w/2, screen->h/2, screen->w/2, screen->h/2, 0, image->maxlev, 1.0);
 	chrono_rendering.stop(); if (chrono) cout << chrono_rendering << endl;
 
-	StarsMap *starmap = image->graphe_stars();
-	if (starmap == NULL) {
-	    cerr << "could not allocate stars-map for " << fname << ". skipped ..." << endl;
-	    delete (image);
-	    return -1;
+	StarsMap *starmap = NULL;
+
+	if (!no_align) {
+	    starmap = image->graphe_stars();
+	    if (starmap == NULL) {
+		cerr << "could not allocate stars-map for " << fname << ". skipped ..." << endl;
+		delete (image);
+		return -1;
+	    }
+	    image->study_specularity(*starmap);
 	}
-	image->study_specularity(*starmap);
 
 	int dx, dy;
 	long long diff;
@@ -437,7 +463,7 @@ int try_add_pic (const char * fname, int rothint) {
 
 	static Chrono chrono_vectordiffing("vector diffing"); chrono_vectordiffing.start();
 
-	{
+	if (!no_align) {
 	    double da0, da0_b;
 	    diff = starmap->find_match (ref_starmap, M_PI*((double)rothint)/180.0, dx, dy, da0, da0_b);
 
@@ -479,7 +505,7 @@ int try_add_pic (const char * fname, int rothint) {
 		cout << " try_add_pic : dv pixmap-choosed = d[" << dx << "," << dy << "] = " << (100.0*((double)diff)/(width*width)) << "%" << endl;
 	}
 
-	if (finetune) {
+	if (finetune && !no_align) {
 	    static Chrono chrono_fine_tuning("fine-tuning"); chrono_fine_tuning.start();
 	    double ang;
 	    double  delta = 0.2 * M_PI/180.0,
@@ -535,12 +561,15 @@ cout << " try_add_pic : dv fine-tuned = d[" << dx << "," << dy
 	    chrono_falloffcorrecting.stop(); if (chrono) cout << chrono_falloffcorrecting << endl;
 	}
 
+	if (no_align) { dx = 0, dy =0; firstda0 = 0.0; }
+
 	ImageRGBL *rot = NULL;
-	if (firstda0 != 0.0) {
+	if ((!no_align) && (firstda0 != 0.0)) {
 	    static Chrono chrono_rotating("rotating image"); chrono_rotating.start();
 	    rot = image->rotate(firstda0);
 	    chrono_rotating.stop(); if (chrono) cout << chrono_rotating << endl;
 	}
+
 
 if (debug)
 cout << " try_add_pic : dv choosed = d[" << dx << "," << dy << "] = " << (100.0*((double)diff)/(width*width)) << "%" << endl;
@@ -618,6 +647,7 @@ cerr << "sizeof(int) = " << sizeof(int) << endl << endl;
     int i;
     int nbimage = 0;
     int rothint = 0;
+    bool no_align = false;
 
     for (i=1 ; i<nb ; i++) {
 	if (cmde[i][0] != '-') {
@@ -658,15 +688,17 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		}
 	    }
 
-	    if (try_add_pic (cmde[i], rothint) == 0) {
+	    if (try_add_pic (cmde[i], rothint, no_align) == 0) {
 		nbimage ++;
 		if (screen != NULL) {
-		    if (!interact (nbimage, interactfly)) {
+		    if (!interact (nbimage, interactfly, no_align)) {
 			// let's exit
 			break;
 		    }
 		}
 	    }
+	} else if (strncmp ("-noalign", cmde[i], 8) == 0) {
+	    no_align = true;
 	} else if (strncmp ("-rot=", cmde[i], 5) == 0) {
 	    rothint = atoi (cmde[i]+5);
 	} else if (strcmp ("-load-unband", cmde[i]) == 0) {
@@ -884,7 +916,7 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 		continue;
 	    } 
 
-	    interact (nbimage, true, true);
+	    interact (nbimage, true, no_align, true);
 
 	    regfree (cregexp);
 	}
@@ -892,7 +924,7 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 
     
 
-    interact (nbimage, true);
+    interact (nbimage, true, no_align);
 
 //    sum_image->minimize ();
 //    sum_image->substract (128);
@@ -916,6 +948,7 @@ int oldmain (int nb, char ** cmde) {
     int i;
     int nbimage = 0;
     int rothint = 0;
+    bool no_align = false;
     for (i=1 ; i<nb ; i++) {
 	if (cmde[i][0] != '-') {
 	    if (ref_image == NULL) {
@@ -957,10 +990,10 @@ cout << "reference star map :" << ref_starmap.size () << " stars." << endl;
 		}
 	    }
 
-	    if (try_add_pic (cmde[i], rothint) == 0) {
+	    if (try_add_pic (cmde[i], rothint, no_align) == 0) {
 		nbimage ++;
 		if (screen != NULL) {
-		    if (!interact (nbimage, interactfly)) {
+		    if (!interact (nbimage, interactfly, no_align)) {
 			// let's exit
 			break;
 		    }
@@ -1056,13 +1089,13 @@ cout << "regexp = \"" << regexp << "\"" << endl;
 		continue;
 	    } 
 
-	    interact (nbimage, true, true);
+	    interact (nbimage, true, no_align, true);
 
 	    regfree (cregexp);
 	}
     }
 
-    interact (nbimage, true);
+    interact (nbimage, true, no_align);
 
 //    sum_image->minimize ();
 //    sum_image->substract (128);
