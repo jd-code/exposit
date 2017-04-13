@@ -109,6 +109,7 @@ Notes for installing / testing exposit
 	on debian system those package are needed for the build
 	    libsdl-image1.2-dev
 	    libsdl1.2-dev
+	    libcfitsio-dev
 	equivalent packages should exist on most distros
 
 
